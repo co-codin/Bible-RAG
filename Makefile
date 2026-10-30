@@ -1,6 +1,7 @@
 .DEFAULT_GOAL := help
 PY := uv run python
-MILVUS_URI ?= http://localhost:19530
+# Milvus Lite (local file) by default; use http://localhost:19530 with `make up`
+MILVUS_URI ?= ./.milvus/bible_rag.db
 
 .PHONY: help install up down logs ps schema ingest reingest fe-install fe-dev fe-build fe-mock api eval test lint clean
 
@@ -12,7 +13,7 @@ install: ## Install Python deps with uv
 	uv sync
 
 ## --- Milvus ---
-up: ## Start Milvus (etcd + MinIO + Milvus)
+up: ## Start Milvus standalone in docker (optional; Lite is default)
 	docker compose up -d
 
 down: ## Stop Milvus
@@ -26,13 +27,13 @@ ps: ## Show container status
 
 ## --- Data ---
 schema: ## Create Milvus collections (no-op if they exist)
-	$(PY) -m bible_rag.store.schema
+	mkdir -p .milvus && $(PY) -c "from bible_rag.store.schema import init; init('$(MILVUS_URI)')"
 
 ingest: ## Load EN + ZH verses into `passages`
-	$(PY) -m bible_rag.ingest.passages --uri $(MILVUS_URI)
+	mkdir -p .milvus && $(PY) -m bible_rag.ingest.passages --uri $(MILVUS_URI)
 
 reingest: ## Drop collections and load again
-	$(PY) -m bible_rag.ingest.passages --uri $(MILVUS_URI) --drop
+	mkdir -p .milvus && $(PY) -m bible_rag.ingest.passages --uri $(MILVUS_URI) --drop
 
 ## --- Backend ---
 api: ## Run FastAPI dev server on :8000

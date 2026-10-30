@@ -40,3 +40,6 @@ go-embed-worker/bin/
 .idea/
 .vscode/
 .DS_Store
+
+# Milvus Lite local DB
+.milvus/
