@@ -17,10 +17,9 @@ htmlcov/
 .env.*
 !.env.example
 
-# Data: raw sources and copyrighted text (Ma Jian zh Quran, until 2028)
+# Data: raw sources
 data/raw/*
 !data/raw/.gitkeep
-data/quran/quran_zh.jsonl
 *.parquet
 *.npy
 
