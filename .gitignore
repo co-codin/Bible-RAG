@@ -1,0 +1,43 @@
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+*.egg-info/
+dist/
+build/
+.coverage
+htmlcov/
+
+# Env / secrets
+.env
+.env.*
+!.env.example
+
+# Data: raw sources and copyrighted text (Ma Jian zh Quran, until 2028)
+data/raw/*
+!data/raw/.gitkeep
+data/quran/quran_zh.jsonl
+*.parquet
+*.npy
+
+# Models / caches
+models/
+.cache/
+.deepeval/
+
+# Frontend
+frontend/node_modules/
+frontend/dist/
+frontend/.vite/
+
+# Go
+go-embed-worker/bin/
+
+# IDE / OS
+.idea/
+.vscode/
+.DS_Store
