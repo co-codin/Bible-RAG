@@ -43,3 +43,6 @@ go-embed-worker/bin/
 
 # Milvus Lite local DB
 .milvus/
+
+# Logs
+logs/

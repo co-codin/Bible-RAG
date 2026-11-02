@@ -3,7 +3,7 @@ PY := uv run python
 # Milvus Lite (local file) by default; use http://localhost:19530 with `make up`
 MILVUS_URI ?= ./.milvus/bible_rag.db
 
-.PHONY: help install up down logs ps schema ingest reingest fe-install fe-dev fe-build fe-mock api eval test lint clean
+.PHONY: help install up down logs ps schema ingest reingest chunks chunks-smoke fe-install fe-dev fe-build fe-mock api eval test lint clean
 
 help: ## Show this help
 	@grep -E '^[a-zA-Z_-]+:.*?## ' $(MAKEFILE_LIST) | awk 'BEGIN {FS = ":.*?## "}; {printf "  \033[36m%-12s\033[0m %s\n", $$1, $$2}'
@@ -34,6 +34,12 @@ ingest: ## Load EN + ZH verses into `passages`
 
 reingest: ## Drop collections and load again
 	mkdir -p .milvus && $(PY) -m bible_rag.ingest.passages --uri $(MILVUS_URI) --drop
+
+chunks: ## Chunk + embed (bge-m3 dense+sparse) all EN/ZH texts into `chunks`
+	mkdir -p .milvus && $(PY) -m bible_rag.ingest.chunks --uri $(MILVUS_URI)
+
+chunks-smoke: ## Embed the first 500 chunks per translation (quick check)
+	mkdir -p .milvus && $(PY) -m bible_rag.ingest.chunks --uri $(MILVUS_URI) --limit 500
 
 ## --- Backend ---
 api: ## Run FastAPI dev server on :8000
