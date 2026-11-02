@@ -41,7 +41,7 @@ chunks: ## Chunk + embed (bge-m3 dense+sparse) all EN/ZH texts into `chunks`
 chunks-smoke: ## Embed the first 500 chunks per translation (quick check)
 	mkdir -p .milvus && $(PY) -m bible_rag.ingest.chunks --uri $(MILVUS_URI) --limit 500
 
-HF_INDEX_REPO ?= co-codin/bible-rag-index
+HF_INDEX_REPO ?= etsin-ai/bible-rag-index
 fetch-index: ## Download a pre-built Milvus Lite db + manifest.json from HF (HF_INDEX_REPO)
 	@# Milvus Lite stores bible_rag.db as a directory, so fetch the whole folder, not one file.
 	mkdir -p .milvus && $(PY) -c "from huggingface_hub import snapshot_download as d; \
