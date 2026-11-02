@@ -10,7 +10,10 @@ from __future__ import annotations
 
 import os
 
+DENSE_DIM = 1024
 MODEL_NAME = "BAAI/bge-m3"
+# Pinned Hugging Face commit, so the vectors in a shipped index match the query encoder.
+MODEL_REVISION = os.environ.get("BGE_M3_REVISION", "5617a9f61b028005a4858fdac845db406aefb181")
 
 
 class BGEM3:
@@ -19,6 +22,7 @@ class BGEM3:
     ):
         import torch
         from FlagEmbedding import BGEM3FlagModel
+        from huggingface_hub import snapshot_download
 
         if device is None:
             device = "cuda" if torch.cuda.is_available() else "cpu"
@@ -27,7 +31,8 @@ class BGEM3:
         self.device = device
         self.max_length = max_length
         # fp16 halves memory and is ~2x faster on GPU; on CPU it is slower or unsupported.
-        self.model = BGEM3FlagModel(model_name, use_fp16=(device == "cuda"), devices=[device])
+        path = snapshot_download(model_name, revision=MODEL_REVISION)  # cached after first run
+        self.model = BGEM3FlagModel(path, use_fp16=(device == "cuda"), devices=[device])
 
     def encode(
         self, texts: list[str], batch_size: int = 32

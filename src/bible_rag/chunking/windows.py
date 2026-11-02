@@ -26,6 +26,9 @@ from bible_rag.ingest.passages import SOURCES, canon_ref
 
 WINDOW = 3
 STRIDE = 2
+# Id of the rule that builds Chunk.context_prefix. Bump it whenever the rule changes:
+# it is part of the index fingerprint (see bible_rag.index_manifest).
+CONTEXT_PREFIX_RULE = "book_chapter_header.v1"
 
 
 @dataclass(frozen=True)

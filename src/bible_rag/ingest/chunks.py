@@ -107,6 +107,9 @@ def run(
         todo = add_context(todo)  # TODO: experiment, currently raises NotImplementedError
     print(f"to embed: {len(todo)} chunks (batch={batch})")
     if not todo:
+        print(
+            "nothing to embed; refresh the manifest with `python -m bible_rag.index_manifest write`"
+        )
         return
 
     from bible_rag.embedding.bge_m3 import BGEM3  # heavy import, only when needed
@@ -176,9 +179,17 @@ def run(
         f"embedded+written {written['n']} chunks in {embed_s:.0f}s "
         f"({written['n'] / embed_s:.1f} chunks/s); total {time.perf_counter() - t0:.0f}s"
     )
+    counts = {}
     for t in translations:
         n = client.query(CHUNKS, filter=f'translation == "{t}"', output_fields=["count(*)"])
-        print(f"{t:9} rows in chunks: {n[0]['count(*)']}")
+        counts[t] = n[0]["count(*)"]
+        print(f"{t:9} rows in chunks: {counts[t]}")
+
+    # Only a complete build gets a manifest: a --limit / partial run must never look shippable.
+    if limit is None and not contextual and set(translations) == set(DEFAULT_TRANSLATIONS):
+        from bible_rag.index_manifest import write_manifest
+
+        print(f"manifest: {write_manifest(uri, counts)}")
 
 
 def main() -> None:
