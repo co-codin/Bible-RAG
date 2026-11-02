@@ -34,7 +34,7 @@ LANG_TR = {"en": {"bible": "kjv", "quran": "quran_en"},
            "zh": {"bible": "cuv", "quran": "quran_zh"}}
 OTHER = {"en": "zh", "zh": "en"}
 CATEGORIES = ["factual", "topical", "verse_lookup", "cross_lingual", "cross_corpus",
-              "paraphrase", "negative", "trap", "numbering"]
+              "paraphrase", "negative", "trap", "numbering", "multi_hop"]
 
 # ---------------------------------------------------------------------------
 # Item definitions
@@ -52,6 +52,19 @@ def I(cat, corpus, diff, refs, en=None, zh=None, *, en_refs=None, zh_refs=None,
     ITEMS.append(dict(cat=cat, corpus=corpus, diff=diff, refs=refs, en=en, zh=zh,
                       en_refs=en_refs, zh_refs=zh_refs, behavior=behavior, notes=notes))
 
+
+
+# T(category, corpus, difficulty, refs, en_question, zh_question, en_lead, zh_lead, ...)
+# Hand-written question (and optional one-line hand-written lead / reasoning), but the
+# quoted scripture in the answer is assembled at build time from the corpus text, so it
+# is always verbatim. refs: list of refs, or nested lists of consecutive refs that are
+# quoted together, e.g. ["Isa.61.1", ["Luke.4.18", "Luke.4.19"]].
+TITEMS: list[dict] = []
+
+
+def T(cat, corpus, diff, refs, en_q, zh_q, en_lead="", zh_lead="", *, behavior="answer", notes=None):
+    TITEMS.append(dict(cat=cat, corpus=corpus, diff=diff, groups=[g if isinstance(g, list) else [g] for g in refs],
+                       en_q=en_q, zh_q=zh_q, en_lead=en_lead, zh_lead=zh_lead, behavior=behavior, notes=notes))
 # ============================== FACTUAL — Bible ==============================
 I("factual", "bible", "easy", ["Gen.6.13", "Gen.6.14", "Gen.6.22"],
   en=("Who built the ark, and who told him to build it?",
@@ -1542,6 +1555,761 @@ for en_q, zh_q in NEG2:
       en=(en_q, "The Bible (KJV) and Quran corpora contain no passage on this topic; the system should say so instead of citing unrelated verses."),
       zh=(zh_q, "圣经（和合本）和《古兰经》语料中没有涉及该主题的经文；系统应说明找不到，而不是引用无关经文。"),
       behavior="not_found")
+# ============================== MULTI-HOP (templated) ==============================
+# Questions that need 2+ passages, normally from different books / surahs: an NT
+# quotation and its OT source, a story and its later retelling, a rule developed
+# across several surahs. Lead sentences are hand-written; the quoted text is verbatim.
+MH = "multi_hop"
+T(MH, "bible", "hard", ["Luke.4.18", "Isa.61.1"],
+  "In the synagogue at Nazareth Jesus read 'The Spirit of the Lord is upon me'. Which prophet's book was it, and how does the original passage read?",
+  "耶稣在拿撒勒会堂读「主的灵在我身上」，这段出自哪位先知的书？原文怎么说？",
+  "Jesus was reading the prophet Isaiah (Isaiah 61:1).", "这段出自以赛亚书61章1节。")
+T(MH, "bible", "medium", ["Matt.2.15", "Hos.11.1"],
+  "Matthew says 'Out of Egypt have I called my son' was spoken by a prophet. Which prophet, and what did the original refer to?",
+  "马太福音说「我从埃及召出我的儿子来」是先知说的话。是哪位先知？原文指的是谁？",
+  "The words are from Hosea, where they refer to Israel as God's child.", "这话出自何西阿书，原文指的是以色列。")
+T(MH, "bible", "medium", ["Matt.1.23", "Isa.7.14"],
+  "Which Old Testament verse is Matthew quoting when he says a virgin shall bear a son called Emmanuel?",
+  "马太福音说童女怀孕生子、名叫以马内利，引用的是旧约哪一节？",
+  "Matthew is quoting Isaiah 7:14.", "马太引用的是以赛亚书7章14节。")
+T(MH, "bible", "medium", ["Matt.2.6", "Mic.5.2"],
+  "How did the scribes know the Messiah would be born in Bethlehem? Give the prophecy and its source.",
+  "文士怎么知道基督要生在伯利恒？请给出预言及其出处。",
+  "They quoted the prophet Micah.", "他们引用的是先知弥迦的预言。")
+T(MH, "bible", "medium", ["Matt.21.5", "Zech.9.9"],
+  "Jesus rode into Jerusalem on a donkey. Which prophet foretold the king coming on a colt, and what does Matthew quote?",
+  "耶稣骑驴进耶路撒冷。哪位先知预言王骑着驴驹来到？马太怎样引用？",
+  "Matthew applies Zechariah's prophecy.", "马太引用的是撒迦利亚的预言。")
+T(MH, "bible", "hard", ["Matt.27.9", ["Zech.11.12", "Zech.11.13"]],
+  "Matthew links Judas's thirty pieces of silver to a prophecy. Whom does he name, and where in the Old Testament do the thirty pieces cast to the potter actually appear?",
+  "马太把犹大的三十块钱与预言联系起来。他提到的是哪位先知？旧约中「三十块钱丢给窑户」实际出现在哪里？",
+  "Matthew names Jeremiah, but the thirty pieces of silver cast to the potter appear in Zechariah 11:12-13.",
+  "马太提到的是耶利米，但三十块钱丢给窑户的经文见于撒迦利亚书11章12至13节。")
+T(MH, "bible", "medium", ["Matt.27.46", "Ps.22.1"],
+  "What did Jesus cry from the cross in the ninth hour, and which psalm begins with those words?",
+  "耶稣在十字架上约在申初喊的是什么？哪一篇诗篇以这句话开头？",
+  "He cried the opening line of Psalm 22.", "他喊出的是诗篇第22篇的第一句。")
+T(MH, "bible", "medium", ["John.19.24", "Ps.22.18"],
+  "The soldiers cast lots for Jesus's coat. Which scripture does John say this fulfilled?",
+  "兵丁为耶稣的里衣拈阄，约翰说这应验了哪段经文？",
+  "John cites Psalm 22:18.", "约翰引用的是诗篇22篇18节。")
+T(MH, "bible", "hard", ["John.19.36", "Exod.12.46"],
+  "John says 'A bone of him shall not be broken' fulfilled scripture. Which Passover rule lies behind it?",
+  "约翰说「他的骨头一根也不可折断」应验了经上的话。这背后是哪条逾越节条例？",
+  "It echoes the Passover lamb rule in Exodus.", "这对应出埃及记中逾越节羊羔的条例。")
+T(MH, "bible", "medium", ["Rom.4.3", "Gen.15.6"],
+  "Paul says Abraham's faith was counted to him for righteousness. Where in Genesis is that stated?",
+  "保罗说亚伯拉罕信神就算为他的义。创世记哪里这样说？",
+  "Paul quotes Genesis 15:6.", "保罗引用的是创世记15章6节。")
+T(MH, "bible", "medium", ["Rom.1.17", "Hab.2.4"],
+  "'The just shall live by faith' — where does Paul quote it, and which prophet said it first?",
+  "「义人必因信得生」——保罗在哪里引用？最早是哪位先知说的？",
+  "Paul quotes the prophet Habakkuk.", "保罗引用的是先知哈巴谷的话。")
+T(MH, "bible", "easy", ["Matt.22.39", "Lev.19.18"],
+  "Jesus called 'love thy neighbour as thyself' the second great commandment. Where is it in the Law of Moses?",
+  "耶稣说「爱人如己」是第二条大诫命。这条在摩西律法哪里？",
+  "It comes from Leviticus 19:18.", "出自利未记19章18节。")
+T(MH, "bible", "medium", ["Matt.4.4", "Deut.8.3"],
+  "When tempted to turn stones into bread, what did Jesus answer, and which book was he quoting?",
+  "耶稣受试探要把石头变成食物时怎样回答？他引用的是哪卷书？",
+  "He quoted Deuteronomy.", "他引用的是申命记。")
+T(MH, "bible", "medium", ["Matt.4.7", "Deut.6.16"],
+  "On the pinnacle of the temple, which commandment did Jesus quote back to the devil, and where is it written?",
+  "在殿顶上，耶稣用哪条诫命回答魔鬼？出自哪里？",
+  "He quoted Deuteronomy 6:16.", "他引用的是申命记6章16节。")
+T(MH, "bible", "medium", ["Matt.4.10", "Deut.6.13"],
+  "What did Jesus say when Satan offered him the kingdoms of the world, and what Old Testament verse lies behind it?",
+  "撒但把万国给耶稣时，耶稣怎样回答？背后是旧约哪一节？",
+  "He drew on Deuteronomy 6:13.", "他引用的是申命记6章13节的意思。")
+T(MH, "bible", "medium", [["Acts.2.16", "Acts.2.17"], "Joel.2.28"],
+  "At Pentecost Peter explained the outpouring of the Spirit with a prophecy. Which prophet, and what is the original wording?",
+  "五旬节彼得用一段预言解释圣灵浇灌。是哪位先知？原文怎么说？",
+  "Peter cited the prophet Joel.", "彼得引用的是先知约珥。")
+T(MH, "bible", "hard", ["Gen.14.18", "Ps.110.4", "Heb.7.1"],
+  "Who was Melchizedek, where does he first appear, and which psalm speaks of a priest after his order?",
+  "麦基洗德是谁？他最早出现在哪里？哪篇诗篇提到照他等次的祭司？",
+  "He is the king of Salem and priest of the most high God in Genesis 14, named again in Psalm 110 and Hebrews 7.",
+  "他是撒冷王、至高神的祭司，见于创世记14章，又见于诗篇110篇和希伯来书7章。")
+T(MH, "bible", "medium", ["Ps.118.22", "Matt.21.42", "Acts.4.11"],
+  "Trace the 'stone which the builders rejected' from the Psalms to Jesus and to Peter.",
+  "请追溯「匠人所弃的石头」从诗篇到耶稣再到彼得的引用。",
+  "", "")
+T(MH, "bible", "easy", ["Matt.12.40", "Jonah.1.17"],
+  "What 'sign of Jonah' did Jesus give, and how long was Jonah in the fish according to the book of Jonah?",
+  "耶稣说的「约拿的神迹」是什么？约拿书说约拿在鱼腹中多久？",
+  "Three days and three nights in both.", "两处都是三日三夜。")
+T(MH, "bible", "medium", ["John.3.14", "Num.21.9"],
+  "Jesus compared his being lifted up to something Moses did. What did Moses do and where is it recorded?",
+  "耶稣把自己被举起比作摩西做过的事。摩西做了什么？记在哪里？",
+  "Moses lifted up a bronze serpent on a pole (Numbers 21).", "摩西在杆子上挂起铜蛇（民数记21章）。")
+T(MH, "bible", "medium", ["John.6.31", "Exod.16.15"],
+  "The crowd told Jesus their fathers ate bread from heaven in the desert. What was it, and where is it first named?",
+  "众人对耶稣说祖宗在旷野吃过从天上来的粮。那是什么？最早在哪里出现？",
+  "It was manna, first given in Exodus 16.", "那是吗哪，最早见于出埃及记16章。")
+T(MH, "bible", "medium", ["Heb.8.8", "Jer.31.31"],
+  "Hebrews speaks of a new covenant with the house of Israel and Judah. Which prophet announced it first?",
+  "希伯来书说要与以色列家和犹大家另立新约。最早是哪位先知宣告的？",
+  "Hebrews quotes Jeremiah 31:31.", "希伯来书引用的是耶利米书31章31节。")
+T(MH, "bible", "medium", ["Josh.2.1", "Heb.11.31", "Jas.2.25"],
+  "Who was Rahab, and how do Hebrews and James each remember her?",
+  "喇合是谁？希伯来书和雅各书分别怎样记念她？",
+  "Hebrews praises her faith and James her works, both for receiving the spies.",
+  "希伯来书称赞她的信，雅各书称赞她的行为，都因她接待探子。")
+T(MH, "bible", "easy", ["Gen.5.24", "Heb.11.5"],
+  "What happened to Enoch according to Genesis, and how does Hebrews explain it?",
+  "创世记说以诺怎样了？希伯来书怎样解释？",
+  "God took him without death.", "神把他接去，他没有经历死亡。")
+T(MH, "bible", "medium", ["Mal.4.5", "Matt.11.14"],
+  "Which prophet promised that Elijah would be sent, and whom did Jesus identify as that Elijah?",
+  "哪位先知应许以利亚要被差来？耶稣说谁就是那以利亚？",
+  "Malachi promised it; Jesus said John the Baptist was the Elijah to come.",
+  "玛拉基作此应许；耶稣说施洗约翰就是那应当来的以利亚。")
+T(MH, "bible", "easy", ["Isa.40.3", "Matt.3.3"],
+  "John the Baptist is called the voice crying in the wilderness. Which prophet's words are these?",
+  "施洗约翰被称为在旷野呼喊的声音，这是哪位先知的话？",
+  "They are Isaiah's words.", "这是以赛亚的话。")
+T(MH, "bible", "medium", ["Luke.17.32", "Gen.19.26"],
+  "Jesus warned 'Remember Lot's wife.' What happened to her?",
+  "耶稣警告「你们要回想罗得的妻子」。她发生了什么事？",
+  "She looked back and became a pillar of salt.", "她回头一看，就变成了一根盐柱。")
+T(MH, "bible", "easy", ["Gen.25.33", "Heb.12.16"],
+  "What did Esau sell, and how does the New Testament judge him for it?",
+  "以扫卖了什么？新约怎样评价他？",
+  "", "")
+T(MH, "bible", "medium", ["Gen.4.8", "1John.3.12"],
+  "What did Cain do, and what reason does 1 John give for it?",
+  "该隐做了什么？约翰一书说原因是什么？",
+  "", "")
+T(MH, "bible", "medium", ["Gen.4.4", "Heb.11.4"],
+  "Why was Abel's offering accepted? Combine Genesis with Hebrews.",
+  "亚伯的供物为什么蒙悦纳？请结合创世记和希伯来书回答。",
+  "", "")
+T(MH, "bible", "medium", ["Gen.6.22", "Heb.11.7", "1Pet.3.20"],
+  "How did Noah respond to God's command, how does Hebrews describe his motive, and how many people were saved in the ark?",
+  "挪亚怎样回应神的吩咐？希伯来书怎样描述他的动机？方舟里得救的有几个人？",
+  "He obeyed, acting by faith, and eight souls were saved.", "他照样遵行，是因着信；得救的只有八个人。")
+T(MH, "bible", "medium", ["Num.22.28", "2Pet.2.16"],
+  "Which animal rebuked a prophet, and how does 2 Peter refer back to the event?",
+  "哪一种动物责备了先知？彼得后书怎样提到这件事？",
+  "Balaam's donkey spoke (Numbers 22); 2 Peter recalls it.", "巴兰的驴开口说话（民数记22章），彼得后书提到此事。")
+T(MH, "bible", "medium", ["1Kgs.17.1", "Jas.5.17"],
+  "Elijah announced a drought to Ahab. According to James, how long did it last and why?",
+  "以利亚向亚哈宣告旱灾。按雅各书，旱灾持续多久？原因是什么？",
+  "James says Elijah prayed and it did not rain for three years and six months.", "雅各书说以利亚恳切祷告，雨就三年零六个月不下。")
+T(MH, "bible", "easy", ["Job.1.22", "Jas.5.11"],
+  "How did Job respond to his first losses, and what quality of his does James single out?",
+  "约伯在最初遭难时怎样回应？雅各书特别提到他什么品质？",
+  "He did not sin, and James praises his patience.", "他没有犯罪，雅各书称赞他的忍耐。")
+T(MH, "bible", "medium", ["1Sam.21.6", "Mark.2.26"],
+  "When the Pharisees criticised his disciples on the Sabbath, which episode about David did Jesus cite? Give both passages.",
+  "法利赛人在安息日批评门徒时，耶稣举了大卫的哪件事？请给出两处经文。",
+  "David ate the shewbread given by the priest.", "大卫吃了祭司给的陈设饼。")
+T(MH, "bible", "medium", ["Luke.4.27", "2Kgs.5.14"],
+  "Jesus said only one leper in Elisha's time was cleansed. Who was he and how was he healed?",
+  "耶稣说以利沙时只有一个长大麻疯的得洁净。他是谁？怎样得医治？",
+  "Naaman the Syrian, who dipped seven times in the Jordan.", "叙利亚人乃缦，他在约旦河里沐浴七回。")
+T(MH, "bible", "medium", ["Luke.4.26", "1Kgs.17.9"],
+  "To whom was Elijah sent during the famine according to Jesus, and where is that command recorded?",
+  "按耶稣所说，饥荒时以利亚奉差往谁那里去？这命令记在哪里？",
+  "To a widow of Zarephath in Sidon.", "往西顿撒勒法的一个寡妇那里去。")
+T(MH, "bible", "medium", ["1Kgs.10.1", "Matt.12.42"],
+  "Why did the queen of Sheba visit Solomon, and what did Jesus say about her?",
+  "示巴女王为什么拜访所罗门？耶稣怎样提到她？",
+  "", "")
+T(MH, "bible", "hard", ["Matt.1.5", "Ruth.4.22"],
+  "How is Ruth connected to King David and to the genealogy of Jesus?",
+  "路得与大卫王以及耶稣的家谱有什么关系？",
+  "Ruth bore Obed to Boaz; Obed was the father of Jesse, the father of David.", "路得给波阿斯生了俄备得，俄备得生耶西，耶西生大卫。")
+T(MH, "bible", "medium", ["Rom.10.15", "Isa.52.7"],
+  "'How beautiful are the feet' — where does Paul use it, and what is the fuller wording in Isaiah?",
+  "「报福音、传喜信的人，他们的脚踪何等佳美」——保罗在哪里引用？以赛亚书原文怎么说？",
+  "", "")
+T(MH, "bible", "hard", ["1Cor.15.55", "Hos.13.14"],
+  "'O death, where is thy sting?' Which prophet's words is Paul echoing?",
+  "「死啊！你的毒钩在哪里？」保罗呼应的是哪位先知的话？",
+  "Paul echoes Hosea 13:14.", "保罗呼应的是何西阿书13章14节。")
+T(MH, "bible", "easy", ["1Pet.1.16", "Lev.19.2"],
+  "Peter writes 'Be ye holy; for I am holy.' Where is this written in the Law?",
+  "彼得写道「你们要圣洁，因为我是圣洁的」。这在律法书哪里？",
+  "It is from Leviticus.", "出自利未记。")
+T(MH, "bible", "easy", ["Eph.6.2", "Exod.20.12"],
+  "Paul calls honouring parents 'the first commandment with promise'. What is the promise in the original commandment?",
+  "保罗说孝敬父母是「第一条带应许的诫命」。原诫命中的应许是什么？",
+  "The promise is long life in the land.", "应许是在地上得以长久。")
+T(MH, "bible", "medium", ["Gen.2.24", "Matt.19.5", "Eph.5.31"],
+  "Which verse about leaving father and mother and becoming one flesh is quoted by both Jesus and Paul? Give all three passages.",
+  "关于「离开父母、二人成为一体」的经文，耶稣和保罗都引用过。请给出三处经文。",
+  "", "")
+T(MH, "bible", "medium", ["Rom.12.19", "Deut.32.35"],
+  "Paul says 'Vengeance is mine; I will repay.' Where does God say this in the Old Testament?",
+  "保罗说「伸冤在我，我必报应」。旧约哪里有这句话？",
+  "It is from the Song of Moses in Deuteronomy.", "出自申命记中摩西的歌。")
+T(MH, "bible", "medium", ["Rom.12.20", "Prov.25.21"],
+  "Feeding a hungry enemy: where does Paul teach it and which proverb is he quoting?",
+  "仇敌饿了就给他吃：保罗在哪里这样教导？他引用的是哪条箴言？",
+  "", "")
+T(MH, "bible", "medium", ["Matt.22.44", "Ps.110.1"],
+  "Jesus asked how David could call the Messiah 'Lord'. Which psalm did he quote?",
+  "耶稣问大卫怎能称基督为主，他引用的是哪篇诗篇？",
+  "He quoted Psalm 110:1.", "他引用的是诗篇110篇1节。")
+T(MH, "bible", "medium", ["Matt.9.13", "Hos.6.6"],
+  "'I will have mercy, and not sacrifice' — where did Jesus say it, and which prophet said it first?",
+  "「我喜爱怜恤，不喜爱祭祀」——耶稣在哪里说的？最早出自哪位先知？",
+  "Jesus was quoting Hosea.", "耶稣引用的是何西阿。")
+T(MH, "bible", "medium", ["1Cor.15.32", "Isa.22.13"],
+  "'Let us eat and drink; for tomorrow we die' appears in Paul and in a prophet. Give both passages.",
+  "「我们吃喝吧，因为明天要死了」同时出现在保罗书信和先知书中。请给出两处经文。",
+  "", "")
+T(MH, "bible", "hard", ["Gal.4.22", "Gen.16.15", "Gen.21.2"],
+  "Paul says Abraham had two sons, one by a bondmaid and one by a freewoman. Who were the sons and mothers, according to Genesis?",
+  "保罗说亚伯拉罕有两个儿子，一个是使女生的，一个是自主之妇人生的。按创世记，他们是谁？",
+  "The bondmaid Hagar bore Ishmael; Sarah bore Abraham a son in his old age.",
+  "使女夏甲生了以实玛利；撒拉在亚伯拉罕年老时给他生了一个儿子。")
+T(MH, "bible", "hard", ["John.1.51", "Gen.28.12"],
+  "Jesus told Nathanael he would see angels ascending and descending. Which dream of Jacob does this recall?",
+  "耶稣对拿但业说将看见神的使者上去下来，这让人想起雅各的哪个梦？",
+  "It recalls Jacob's ladder at Bethel.", "这让人想起雅各在伯特利梦见的梯子。")
+T(MH, "bible", "medium", ["John.1.29", "Isa.53.7"],
+  "John the Baptist called Jesus 'the Lamb of God'. Which prophecy describes the servant as a lamb led to the slaughter?",
+  "施洗约翰称耶稣为「神的羔羊」。哪段预言把受苦的仆人比作被牵去宰杀的羊羔？",
+  "Isaiah 53:7.", "以赛亚书53章7节。")
+T(MH, "bible", "medium", ["Matt.2.18", "Jer.31.15"],
+  "After Herod killed the children of Bethlehem, which prophecy about Rachel weeping did Matthew cite?",
+  "希律杀了伯利恒的婴孩后，马太引用了哪段关于拉结哭泣的预言？",
+  "Jeremiah 31:15.", "耶利米书31章15节。")
+T(MH, "bible", "easy", ["Matt.21.9", "Ps.118.26"],
+  "What did the crowds shout as Jesus entered Jerusalem, and which psalm does their cry come from?",
+  "耶稣进耶路撒冷时众人喊什么？这呼喊出自哪篇诗篇？",
+  "Their blessing comes from Psalm 118.", "他们的称颂出自诗篇118篇。")
+T(MH, "bible", "medium", ["John.2.17", "Ps.69.9"],
+  "When Jesus cleansed the temple, what scripture did the disciples remember?",
+  "耶稣洁净圣殿时，门徒想起了哪段经文？",
+  "Psalm 69:9.", "诗篇69篇9节。")
+T(MH, "bible", "hard", ["Matt.21.13", "Isa.56.7", "Jer.7.11"],
+  "In the temple Jesus combined two prophets: 'house of prayer' and 'den of thieves'. Which prophets?",
+  "耶稣在殿中把「祷告的殿」和「贼窝」两句话合在一起说。分别出自哪位先知？",
+  "House of prayer is from Isaiah; den of robbers is from Jeremiah.", "「祷告的殿」出自以赛亚，「贼窝」出自耶利米。")
+# --- Quran multi-hop (different surahs) ---
+T(MH, "quran", "medium", ["Q015.15.28", "Q002.2.34"],
+  "What did Allah tell the angels about creating man, and what happened when they were ordered to prostrate before Adam?",
+  "真主对天神们说要用什么造人？天神们奉命向阿丹叩头时发生了什么？",
+  "Man was made from clay; all prostrated except Iblis.", "人是用黏土造的；众天神都叩头，唯有易卜劣厮不肯。")
+T(MH, "quran", "medium", ["Q007.7.12", "Q038.38.76"],
+  "What reason did Iblis give for refusing to prostrate? Show that two surahs give the same argument.",
+  "易卜劣厮拒绝叩头的理由是什么？请说明两章经文给出相同的理由。",
+  "In both he says he is better because he was made of fire and Adam of clay.", "两处他都说自己更好，因为他是用火造的，阿丹是用泥造的。")
+T(MH, "quran", "medium", ["Q020.20.10", "Q028.28.30"],
+  "What did Moses see on his journey, and what was he told when he reached it?",
+  "穆萨在旅途中看见了什么？他走近时听到了什么？",
+  "He saw a fire and was called from the tree by Allah, the Lord of the Worlds.", "他看见火光，走近后从丛林中听到呼声，宣告真主是全世界的主。")
+T(MH, "quran", "hard", ["Q002.2.219", "Q004.4.43", "Q005.5.90"],
+  "How does the Quran address strong drink across different surahs?",
+  "《古兰经》在不同章节中怎样论及饮酒？",
+  "It first says its sin is greater than its benefit, then forbids praying while drunk, then calls it Satan's handiwork to be avoided.",
+  "先说其罪过大于利益，再禁止酒醉时礼拜，最后称其为恶魔的行为，当远离。")
+T(MH, "quran", "medium", ["Q005.5.3", "Q006.6.145"],
+  "Which foods are forbidden in the Quran, and what exception is made for someone forced by need? Use two surahs.",
+  "《古兰经》禁止哪些食物？对迫不得已的人有什么例外？请引用两章。",
+  "Carrion, blood, swine flesh and what is dedicated to other than Allah; one compelled without wilful sin is forgiven.",
+  "自死物、血液、猪肉以及诵非真主之名而宰的；迫不得已而无意犯罪的，蒙饶恕。")
+T(MH, "quran", "medium", ["Q003.3.46", "Q019.19.30"],
+  "The angels foretold that Jesus would speak in the cradle. What did he say when he did?",
+  "天神预言尔撒将在摇篮里说话。他说话时说了什么？",
+  "", "")
+T(MH, "quran", "easy", ["Q071.71.1", "Q029.29.14"],
+  "What was Noah sent to do, and how long did he stay among his people?",
+  "努哈奉命去做什么？他在宗族中逗留了多久？",
+  "He was sent to warn them, and he stayed 950 years.", "他奉命警告他们，逗留了九百五十年。")
+T(MH, "quran", "medium", ["Q037.37.139", "Q068.68.48"],
+  "Who is 'him of the fish' that the Prophet is told not to be like, and what is said about him elsewhere?",
+  "经文叫先知不要像「那个葬身鱼腹的人」，那是谁？别处怎样提到他？",
+  "It is Jonah, who is also named as one of the messengers.", "那是优努司，别处说他确是使者。")
+T(MH, "quran", "medium", ["Q021.21.58", "Q037.37.93"],
+  "What did Abraham do to his people's idols? Combine two surahs.",
+  "易卜拉欣对他宗族的偶像做了什么？请结合两章经文回答。",
+  "", "")
+T(MH, "quran", "easy", ["Q029.29.24", "Q021.21.69"],
+  "How did Abraham's people try to kill him, and how was he saved?",
+  "易卜拉欣的宗族想怎样杀害他？他是怎样得救的？",
+  "They resolved to burn him, but Allah made the fire coolness and peace.", "他们要烧死他，但真主使火对他变成凉爽的和平的。")
+T(MH, "quran", "medium", ["Q002.2.127", "Q003.3.96"],
+  "Who raised the foundations of the House, and where was the first sanctuary for mankind?",
+  "谁树起了天房的基础？为世人而设的最古的清真寺在哪里？",
+  "Abraham and Ishmael; the first sanctuary was at Becca (Mecca).", "易卜拉欣和易司马仪；最古的天房在麦加。")
+T(MH, "quran", "medium", ["Q021.21.79", "Q034.34.12"],
+  "What gifts did Allah give Solomon according to two different surahs?",
+  "按两章不同的经文，真主赏赐了素莱曼什么？",
+  "", "")
+T(MH, "quran", "medium", ["Q034.34.10", "Q021.21.80"],
+  "What craft did Allah teach David, and what material was made supple for him?",
+  "真主教给达五德什么手艺？为他使什么材料变软？",
+  "Iron was made supple and he was taught to make coats of mail.", "真主为他使铁柔软，并教他制造铠甲。")
+T(MH, "quran", "medium", ["Q097.97.1", "Q002.2.185"],
+  "In which month and on which night was the Quran revealed?",
+  "《古兰经》是在哪个月、哪一夜降示的？",
+  "In Ramadan, on the Night of Predestination (al-Qadr).", "在赖买丹月，在那高贵的夜间。")
+T(MH, "quran", "medium", ["Q020.20.78", "Q010.10.92"],
+  "What happened to Pharaoh's army at the sea, and what was done with Pharaoh's body?",
+  "法老的军队在海中怎样了？法老的遗体又怎样了？",
+  "They were drowned; his body was preserved as a sign for later generations.", "他们被海水淹没；他的遗体被保存，作后来者的鉴戒。")
+T(MH, "quran", "medium", ["Q003.3.41", "Q019.19.10"],
+  "What sign was Zachariah given that he would have a son? Compare the two surahs.",
+  "宰凯里雅得到什么迹象表明他将有儿子？请比较两章经文。",
+  "He would not speak to people for three days (three nights in Maryam).", "他三日不能与人说话（《麦尔彦》章说三日三夜）。")
+T(MH, "quran", "medium", ["Q028.28.76", "Q029.29.39"],
+  "Who was Korah (Qarun) in the Quran, and with whom is he grouped among the destroyed?",
+  "《古兰经》中的戈伦是谁？他与哪些人一同被列为被毁灭者？",
+  "He was of Moses' people and very rich; he is named with Pharaoh and Haman.", "他属穆萨的宗族，拥有大量财宝；他与法老、哈曼并列。")
+T(MH, "quran", "easy", ["Q011.11.50", "Q069.69.6"],
+  "Which prophet was sent to 'Ad, and how were they destroyed?",
+  "哪位先知被派往阿德人？他们是怎样被毁灭的？",
+  "Hud; they were destroyed by a roaring wind.", "呼德；他们被怒吼的暴风毁灭。")
+T(MH, "quran", "easy", ["Q011.11.64", "Q091.91.13"],
+  "What was Salih's sign to Thamud, and what were they told about it?",
+  "撒立哈给赛莫德人的迹象是什么？他们被告诫什么？",
+  "The she-camel of Allah, which they were to leave alone to feed and drink.", "真主的母驼，他们应当让它自由吃草饮水。")
+T(MH, "quran", "easy", ["Q011.11.85", "Q026.26.181"],
+  "What did Shu'ayb repeatedly command his people about trade?",
+  "舒阿卜在买卖上反复命令他的宗族什么？",
+  "", "")
+T(MH, "quran", "medium", ["Q017.17.23", "Q031.31.14", "Q046.46.15"],
+  "What does the Quran teach about parents across several surahs?",
+  "《古兰经》在多章经文中怎样教导对待父母？",
+  "", "")
+T(MH, "quran", "medium", ["Q003.3.97", "Q022.22.27"],
+  "Who must perform the pilgrimage, and how will people come to it?",
+  "谁有朝觐的义务？人们将怎样来朝觐？",
+  "It is a duty for whoever can find a way; they come on foot and on lean camels.", "凡能旅行到天房的都有义务；人们徒步或乘瘦驼而来。")
+T(MH, "quran", "hard", ["Q034.34.14", "Q027.27.16"],
+  "Solomon was taught the language of birds; how did the jinn learn of his death?",
+  "素莱曼通晓鸟语；精灵们是怎样知道他死了的？",
+  "A creature gnawing his staff showed his death.", "吃他手杖的蛀虫显示了他的死亡。")
+T(MH, "quran", "medium", ["Q002.2.183", "Q097.97.3"],
+  "Fasting was prescribed for believers as for those before them; and what does Surah al-Qadr say the Night of Power is better than?",
+  "斋戒是怎样成为信士的定制的？《高贵》章说那高贵的夜间比什么更好？",
+  "Fasting was prescribed as for earlier peoples; the Night is better than a thousand months.", "斋戒如同前人的定制；那一夜胜过一千个月。")
+# ============================== TOPICAL (templated, multi-ref) ==============================
+TP = "topical"
+_tb = [
+ (["Prov.16.18", "Jas.4.6", "Obad.1.3"], "What does the Bible say about pride?", "圣经怎样论到骄傲？"),
+ (["1Tim.6.10", "Heb.13.5", "Eccl.5.10"], "What does the Bible teach about the love of money?", "圣经怎样教导贪爱钱财的问题？"),
+ (["1Pet.5.7", "Ps.55.22", "Matt.6.25"], "What does the Bible say to someone weighed down by worry?", "圣经对被忧虑压着的人说什么？"),
+ (["Heb.13.2", "Lev.19.34", "Matt.25.35"], "What does the Bible say about welcoming strangers?", "圣经怎样论到接待外人和客旅？"),
+ (["Prov.6.6", "2Thess.3.10", "Prov.13.4"], "What does the Bible say about laziness and work?", "圣经怎样论到懒惰与做工？"),
+ (["Jas.3.5", "Prov.18.21", "Eph.4.29"], "What does the Bible teach about the power of the tongue?", "圣经怎样教导舌头和言语的力量？"),
+ (["Prov.31.9", "Isa.1.17", "Deut.15.11"], "What does the Bible command regarding the poor and the oppressed?", "圣经对穷人和受欺压的人有什么吩咐？"),
+ (["Prov.17.17", ["Eccl.4.9", "Eccl.4.10"]], "What does the Bible say about friendship and companionship?", "圣经怎样论到朋友和同伴？"),
+ (["Prov.20.1", "Eph.5.18"], "What does the Bible say about drunkenness?", "圣经怎样论到醉酒？"),
+ (["Ps.56.3", "2Tim.1.7", "Ps.23.4"], "What verses help with fear?", "哪些经文能帮助人面对惧怕？"),
+ (["Prov.4.7", "Prov.2.6"], "According to Proverbs, how important is wisdom and where does it come from?", "按箴言，智慧有多重要？智慧从哪里来？"),
+ (["Ps.127.3", "Eph.6.4", "Col.3.20"], "What does the Bible say about children and parenting?", "圣经怎样论到儿女与养育儿女？"),
+ (["Rom.12.12", "Eccl.7.8", "Gal.5.22"], "How does the Bible encourage patience in hardship?", "圣经怎样勉励人在艰难中忍耐？"),
+ (["Mic.6.8", "Phil.2.3", "1Pet.5.6"], "What does the Bible teach about humility?", "圣经怎样教导谦卑？"),
+ (["Acts.20.35", "Prov.11.25", "Luke.6.38"], "What does the Bible say about generosity?", "圣经怎样论到慷慨施与？"),
+ (["Prov.12.22", "Eph.4.25", "Col.3.9"], "What does the Bible say about lying?", "圣经怎样论到说谎？"),
+ (["Matt.7.7", "Jas.5.16"], "What does the New Testament promise about prayer?", "新约对祷告有什么应许？"),
+ (["Matt.7.1", "Rom.14.13", "Luke.6.37"], "What does the Bible say about judging others?", "圣经怎样论到论断别人？"),
+ (["Ps.4.8", "Matt.11.28"], "Which verses speak of God giving rest and peaceful sleep?", "哪些经文讲到神赐安息和安睡？"),
+ (["Gen.1.1", "Isa.40.26", "Heb.11.3"], "What does the Bible say about God as creator of the universe?", "圣经怎样论到神是宇宙的创造者？"),
+ (["Ps.34.18", "2Cor.1.4"], "What comfort does the Bible offer the brokenhearted?", "圣经给伤心的人什么安慰？"),
+ (["Acts.3.19", "Luke.15.7"], "What does the Bible say about repentance?", "圣经怎样论到悔改？"),
+ (["John.17.21", "1Cor.1.10"], "What does the New Testament say about unity among believers?", "新约怎样论到信徒的合一？"),
+ (["Jas.1.27", "Exod.22.22", "Ps.68.5"], "What does the Bible say about widows and orphans?", "圣经怎样论到寡妇和孤儿？"),
+ (["1Cor.10.13", "Jas.1.13"], "What does the Bible say about temptation?", "圣经怎样论到试探？"),
+ (["Prov.16.31", "Isa.46.4", "Ps.71.18"], "What does the Bible say about old age?", "圣经怎样论到年老？"),
+ (["1Thess.4.16", "Dan.12.2"], "What does the Bible say about the resurrection of the dead?", "圣经怎样论到死人复活？"),
+ (["Exod.23.8", "Prov.17.23", "Deut.16.19"], "What does the Bible say about bribes?", "圣经怎样论到贿赂？"),
+ (["Gen.2.3", "Mark.2.27"], "What is the origin and purpose of the Sabbath according to the Bible?", "按圣经，安息日的由来和目的是什么？"),
+ (["Ps.100.4", "Col.3.17"], "What does the Bible say about giving thanks?", "圣经怎样论到感恩？"),
+]
+for refs, en_q, zh_q in _tb:
+    T(TP, "bible", "medium", refs, en_q, zh_q)
+_tq = [
+ (["Q002.2.153", "Q016.16.127", "Q103.103.3"], "What does the Quran say about patience and steadfastness?", "《古兰经》怎样论坚忍？"),
+ (["Q004.4.10", "Q093.93.9", "Q107.107.2"], "What does the Quran say about treating orphans?", "《古兰经》怎样论对待孤儿？"),
+ (["Q017.17.35", "Q006.6.152"], "What does the Quran require in weights and measures?", "《古兰经》对斗秤有什么要求？"),
+ (["Q049.49.12", "Q104.104.1"], "What does the Quran say about backbiting, spying and slander?", "《古兰经》怎样论背毁、侦探和诽谤？"),
+ (["Q002.2.261", "Q002.2.264", "Q002.2.274"], "What does the Quran teach about spending in charity, and what spoils it?", "《古兰经》怎样教导施舍？什么会使施舍无效？"),
+ (["Q011.11.114", "Q017.17.78", "Q020.20.130"], "Which verses indicate the times of prayer?", "哪些经文指出礼拜的时间？"),
+ (["Q024.24.22", "Q042.42.40", "Q003.3.134"], "What does the Quran say about forgiving others?", "《古兰经》怎样论宽恕别人？"),
+ (["Q004.4.135", "Q005.5.8", "Q016.16.90"], "What does the Quran command about justice?", "《古兰经》对公道有什么命令？"),
+ (["Q058.58.11", "Q096.96.1"], "What does the Quran say about knowledge and learning?", "《古兰经》怎样论知识与学问？"),
+ (["Q030.30.22", "Q002.2.164"], "Which signs in creation does the Quran point to?", "《古兰经》指出了创造中的哪些迹象？"),
+ (["Q030.30.21", "Q002.2.187", "Q004.4.3"], "What does the Quran say about marriage?", "《古兰经》怎样论婚姻？"),
+ (["Q039.39.53", "Q007.7.156", "Q006.6.54"], "What does the Quran say about the mercy of Allah?", "《古兰经》怎样论真主的慈悯？"),
+ (["Q002.2.8", "Q063.63.1", "Q004.4.145"], "What does the Quran say about hypocrites?", "《古兰经》怎样论伪信者？"),
+ (["Q066.66.8", "Q004.4.17", "Q025.25.70"], "What does the Quran teach about repentance?", "《古兰经》怎样教导悔罪？"),
+ (["Q003.3.185", "Q062.62.8", "Q004.4.78"], "What does the Quran say about death?", "《古兰经》怎样论死亡？"),
+ (["Q017.17.26", "Q004.4.36"], "To whom does the Quran command kindness and giving?", "《古兰经》命令对哪些人行善和施济？"),
+ (["Q031.31.18", "Q017.17.37", "Q016.16.23"], "What does the Quran say about arrogance?", "《古兰经》怎样论傲慢？"),
+ (["Q033.33.70", "Q017.17.53", "Q002.2.263"], "What does the Quran teach about how to speak?", "《古兰经》怎样教导说话？"),
+ (["Q014.14.7", "Q002.2.152", "Q031.31.12"], "What does the Quran promise to those who give thanks?", "《古兰经》对感恩的人有什么应许？"),
+ (["Q003.3.160", "Q014.14.12", "Q033.33.3"], "What does the Quran say about trusting in Allah?", "《古兰经》怎样论信托真主？"),
+]
+for refs, en_q, zh_q in _tq:
+    T(TP, "quran", "medium", refs, en_q, zh_q)
+# ============================== PARAPHRASE (templated) ==============================
+PP = "paraphrase"
+_pb = [
+ ("Matt.6.24", "Jesus said you can't be loyal to both God and wealth at once — where?", "耶稣说人不能同时忠于神又忠于钱财，在哪里？"),
+ ("Matt.7.12", "Treat people the way you want them to treat you — which verse?", "你希望别人怎样对你，你就怎样对别人——是哪节经文？"),
+ ("Matt.19.24", "A large animal squeezing through a sewing needle is compared to a rich person getting into God's kingdom. Where?", "大牲口穿过缝衣针比富人进神的国还容易，这比喻在哪里？"),
+ ("Matt.5.14", "Believers are like a town built on a hilltop that everyone can see. Which verse?", "信徒好像建在山顶、人人看得见的城——是哪节经文？"),
+ ("Matt.7.15", "Watch out for fake preachers who look harmless but are predators underneath — where is this warning?", "要提防外表无害、内里凶残的假传道人——这警告在哪里？"),
+ ("Matt.10.16", "Be clever like snakes but innocent like doves — find the verse.", "要像蛇一样聪明，像鸽子一样单纯——找出这节经文。"),
+ ("Matt.15.14", "If a blind man guides another blind man, both end up in a pit. Where?", "瞎子给瞎子带路，两个都要掉进坑里。出处在哪里？"),
+ ("Luke.4.23", "Where does Jesus anticipate the saying that a doctor should cure himself first?", "耶稣在哪里预料人会对他说「医生先治好你自己」？"),
+ ("Gal.6.9", "Don't get tired of doing good, because the harvest comes in time if you don't give up. Which verse?", "做好事不要疲倦，不放弃，到时候就会有收获——哪节经文？"),
+ ("Prov.27.6", "A friend who hurts you honestly is better than an enemy who flatters you with kisses. Where?", "朋友伤你是出于忠诚，仇敌亲你却是虚假——出处？"),
+ ("Prov.11.14", "Many advisers make a nation safe; without guidance people collapse. Find the proverb.", "谋士多就安全，没有谋略百姓就败落——找出这条箴言。"),
+ ("Prov.16.9", "People plan their route, but God guides their footsteps. Which proverb?", "人计划自己的路，神却引导他的脚步——哪条箴言？"),
+ ("Prov.25.11", "A word said at the right moment is like golden fruit set in silver. Where?", "一句话说得恰到好处，好像银器里的金果子——在哪里？"),
+ ("Prov.29.18", "Without revelation the people run wild — which verse?", "没有默示，百姓就放肆——哪节经文？"),
+ ("Eccl.3.1", "There is a right time for everything that happens — where is this said?", "万事都有合适的时候——这话在哪里？"),
+ ("Eccl.9.11", "The fastest runner doesn't always win and the strongest doesn't always win the battle; luck plays a part. Where?", "跑得快的未必赢，力气大的未必胜，都在乎机会——出处？"),
+ ("Eccl.11.1", "Throw your bread on the water and you'll get it back after a long time. Which verse?", "把粮食撒在水面，日久必能得回——哪节经文？"),
+ ("Eccl.12.12", "Writing books never ends and too much study wears out the body. Where?", "著书没有止境，读书太多使身体疲倦——在哪里？"),
+ ("Jer.13.23", "Can a leopard change its spots? Where does a prophet ask this?", "豹子能改变斑点吗？哪位先知这样问？"),
+ ("Ezek.18.2", "The proverb about parents eating sour grapes and their kids' teeth hurting — where is it quoted?", "父亲吃酸葡萄、儿子牙酸倒的俗语在哪里被引用？"),
+ ("Hos.8.7", "Plant wind, harvest a storm — which prophet says this?", "种的是风，收的是暴风——哪位先知说的？"),
+ ("Matt.5.41", "If someone forces you to walk one mile, walk two — which verse?", "有人逼你走一里，你就走二里——哪节经文？"),
+ ("Matt.6.3", "When you give to the poor, don't let your left hand know what your right hand is doing. Where?", "施舍时不要让左手知道右手做什么——在哪里？"),
+ ("Matt.7.6", "Don't throw pearls to pigs — find the verse.", "不要把珍珠丢给猪——找出这节经文。"),
+ ("Matt.9.17", "Nobody pours new wine into old wineskins. Which verse?", "没有人把新酒装进旧皮袋——哪节经文？"),
+ ("Luke.12.48", "Those who were given much will be expected to give much. Where?", "多给谁，就向谁多要——出处在哪里？"),
+ ("John.12.24", "A seed must fall into the ground and die before it produces a crop. Which verse?", "一粒种子必须落在地里死了才能结出许多子粒——哪节经文？"),
+ ("Rom.12.21", "Defeat evil by doing good instead of letting it defeat you. Where?", "不要被恶胜过，要用善胜过恶——在哪里？"),
+ ("1Cor.13.11", "As a kid I talked and thought like a kid, but as an adult I left those ways behind. Which verse?", "小时候说话思想像孩子，长大后就丢掉孩子的事——哪节经文？"),
+ ("Heb.11.1", "What verse defines faith as being sure of what we hope for and convinced of what we cannot see?", "哪节经文把信心定义为对所盼望之事的把握和对看不见之事的确信？"),
+ ("Jas.1.19", "Listen quickly, speak slowly, get angry slowly — which verse?", "快快地听，慢慢地说，慢慢地动怒——哪节经文？"),
+ ("1John.4.18", "Complete love drives out fear — where?", "完全的爱会把惧怕赶走——在哪里？"),
+ ("Prov.22.6", "Teach a child the right way and he will stick to it when old. Which proverb?", "从小教孩子走正路，到老也不会偏离——哪条箴言？"),
+ ("Prov.27.2", "Let others praise you rather than praising yourself. Where?", "让别人夸你，不要自夸——出处？"),
+ ("Prov.24.17", "Don't celebrate when your enemy falls. Which verse?", "仇敌跌倒时不要幸灾乐祸——哪节经文？"),
+ ("Prov.26.4", "Don't answer a fool in his own foolish terms or you'll become like him. Where?", "不要按愚人的蠢话回答他，免得你和他一样——在哪里？"),
+ ("Eccl.10.1", "Dead flies spoil the perfume, and a little foolishness ruins a wise reputation. Which verse?", "死苍蝇使香膏发臭，一点愚昧也能败坏智慧的名声——哪节经文？"),
+]
+for ref, en_q, zh_q in _pb:
+    T(PP, "bible", "medium", [ref], en_q, zh_q)
+_pq = [
+ ("Q002.2.286", "Allah never burdens anyone with more than they can bear — which verse?", "真主不会让人承担超出能力的责任——哪节经文？"),
+ ("Q049.49.13", "People were made into different peoples and tribes so they could get to know each other; the best is the most pious. Where?", "人被造成不同民族，是为了彼此认识；最尊贵的是最敬畏的——在哪里？"),
+ (["Q094.94.5", "Q094.94.6"], "Ease comes together with hardship, said twice in a row — which surah?", "艰难之中必有容易，而且连说两遍——哪一章？"),
+ ("Q002.2.256", "Nobody may be forced into faith — which verse?", "信仰不可强迫——哪节经文？"),
+ ("Q017.17.32", "Don't even go near sexual immorality — find the verse.", "连私通都不要接近——找出这节经文。"),
+ ("Q004.4.29", "Don't eat up each other's property unjustly except through fair, agreed trade. Where?", "不要用不正当手段侵吞别人的财产，除非是双方同意的交易——在哪里？"),
+ ("Q060.60.8", "Allah does not forbid being kind and fair to those who never fought you over religion. Which verse?", "对于未因宗教与你们作战的人，真主不禁止你们善待他们、公平对待他们——哪节经文？"),
+ ("Q016.16.125", "Invite people to God's way with wisdom and good advice, and argue in the best manner. Where?", "要以智慧和善言劝人走主道，并以最好的方式辩论——出处？"),
+ ("Q006.6.164", "No one carries someone else's sins — which verse?", "谁也不替别人背负罪责——哪节经文？"),
+ ("Q053.53.39", "A person gets only what they strive for. Where?", "人只得到自己努力的成果——在哪里？"),
+ ("Q013.13.11", "God does not change a people's situation until they change themselves. Which verse?", "除非一个民族自己改变，真主不会改变他们的境况——哪节经文？"),
+ ("Q050.50.16", "God is closer to a person than the vein in their neck. Where?", "真主比人颈上的血管还要接近他——在哪里？"),
+ ("Q003.3.103", "Hold on together to God's rope and don't split up. Which verse?", "要一同紧握真主的绳索，不要分裂——哪节经文？"),
+ ("Q055.55.13", "The refrain asking which of your Lord's blessings you deny — first occurrence?", "反复出现的「你们究竟否认你们的主的哪一件恩典呢」——第一次出现在哪里？"),
+ (["Q099.99.7", "Q099.99.8"], "Even the smallest good or evil deed will be seen — where?", "哪怕最微小的善或恶都将被看见——在哪里？"),
+ ("Q007.7.31", "Eat and drink but don't overdo it. Which verse?", "吃喝但不要过分——哪节经文？"),
+ ("Q028.28.77", "Aim for the next life but don't forget your share of this world. Where?", "追求后世，但不要忘记你今世的份——在哪里？"),
+ ("Q057.57.20", "Worldly life is just a game and showing off, like plants that grow green and then dry up. Which verse?", "今世生活只是游戏和炫耀，好像田苗先茂盛后枯黄——哪节经文？"),
+ ("Q018.18.46", "Money and kids are decorations of this life, but lasting good deeds are better. Where?", "财产和子女是今世的装饰，而常存的善功更好——在哪里？"),
+ ("Q064.64.15", "Your property and children are a test. Which verse?", "你们的财产和子女是一种考验——哪节经文？"),
+ ("Q029.29.2", "Do people think they will be left alone just for saying they believe, without being tested? Where?", "人们以为只要说「我们已信道了」就不受考验吗？——在哪里？"),
+ ("Q021.21.35", "Everyone will die, and God tests people with both bad and good. Which verse?", "人人都要死，真主以祸福考验人——哪节经文？"),
+]
+for ref, en_q, zh_q in _pq:
+    T(PP, "quran", "medium", ref if isinstance(ref, list) else [ref], en_q, zh_q)
+# ============================== CROSS-CORPUS (templated, Bible + Quran) ==============================
+CC = "cross_corpus"
+T(CC, "both", "medium", ["Gen.2.3", "Q050.50.38"],
+  "Both scriptures speak of creation followed by God ceasing work. How do Genesis and the Quran differ on rest after creation?",
+  "两部经典都讲到创造之后神停工。创世记和《古兰经》对创造之后的安息有何不同？",
+  "Genesis says God blessed the seventh day and rested; the Quran says creation took six days and no weariness touched Him.",
+  "创世记说神赐福第七日并安息；《古兰经》说六日创造天地，而毫无疲倦。")
+T(CC, "both", "medium", ["Gen.2.19", "Q002.2.31"],
+  "How do the Bible and the Quran connect Adam with the names of creatures?",
+  "圣经和《古兰经》怎样把阿丹（亚当）与万物的名称联系起来？",
+  "In Genesis Adam gives the animals their names; in the Quran Allah teaches Adam the names.",
+  "创世记中是亚当给动物起名；《古兰经》中是真主教授阿丹万物的名称。")
+T(CC, "both", "medium", ["Gen.37.33", "Q012.12.17"],
+  "What animal was blamed for Joseph's disappearance in each scripture?",
+  "两部经典中，约瑟（优素福）的失踪各被归咎于什么动物？",
+  "Genesis has Jacob conclude an evil beast devoured him; in the Quran the brothers say a wolf ate him.",
+  "创世记中雅各断定是恶兽吃了他；《古兰经》中兄弟们说是狼吃了他。")
+T(CC, "both", "medium", ["Gen.41.26", "Q012.12.43"],
+  "Compare the king's dream of cows and ears of grain in Genesis and the Quran.",
+  "比较创世记和《古兰经》中国王梦见母牛和麦穗的记载。",
+  "Both feature seven good or fat cows and seven ears of grain standing for years.",
+  "两处都有七头肥母牛和七个麦穗，预表年岁。")
+T(CC, "both", "medium", ["Exod.7.10", "Q007.7.107"],
+  "Before Pharaoh, whose staff turned into a serpent — according to Exodus and according to the Quran?",
+  "在法老面前，谁的杖变成了蛇？出埃及记和《古兰经》各怎么说？",
+  "In Exodus Aaron casts down the rod; in the Quran Moses flings down his staff.",
+  "出埃及记中是亚伦丢下杖；《古兰经》中是穆萨抛下手杖。")
+T(CC, "both", "easy", ["Exod.2.3", "Q020.20.39"],
+  "How was the baby Moses saved, according to the Bible and the Quran?",
+  "按圣经和《古兰经》，婴孩摩西（穆萨）是怎样得救的？",
+  "Both say he was placed in an ark or chest by the river.", "两处都说他被放在箱子里，搁在河中或河边。")
+T(CC, "both", "medium", ["Exod.2.12", "Q028.28.15"],
+  "How do Exodus and the Quran describe Moses killing a man, and how does Moses react in the Quran?",
+  "出埃及记和《古兰经》怎样记载穆萨（摩西）打死一个人？《古兰经》中他有什么反应？",
+  "In Exodus he slays the Egyptian and hides him; in the Quran he kills with a blow of his fist and calls it the devil's doing.",
+  "出埃及记中他打死埃及人并藏起尸体；《古兰经》中他一拳打死那人，并说这是恶魔的诱惑。")
+T(CC, "both", "medium", ["Exod.2.17", "Q028.28.23"],
+  "What happened when Moses arrived at the well of Midian, in both scriptures?",
+  "两部经典中，摩西（穆萨）来到米甸（麦德彦）的井边时发生了什么？",
+  "", "")
+T(CC, "both", "medium", ["Exod.8.6", "Q007.7.133"],
+  "Which plagues on Egypt appear in both the Bible and the Quran? Use frogs as an example.",
+  "哪些降在埃及的灾殃同时出现在圣经和《古兰经》中？以青蛙为例。",
+  "Frogs appear in both; the Quran also lists flood, locusts, vermin and blood.", "两处都有青蛙；《古兰经》还列出水灾、蝗虫、虱子和血。")
+T(CC, "both", "medium", ["Gen.7.11", ["Q054.54.11", "Q054.54.12"]],
+  "Where did the floodwaters come from according to Genesis and the Quran?",
+  "按创世记和《古兰经》，洪水从哪里来？",
+  "Both describe water from above and springs from below.", "两处都说水从天上降下，又从地下的泉源涌出。")
+T(CC, "both", "easy", ["Gen.18.7", "Q051.51.26"],
+  "What food did Abraham prepare for his angelic guests, according to both scriptures?",
+  "按两部经典，亚伯拉罕（易卜拉欣）为天使客人预备了什么食物？",
+  "A calf in both accounts.", "两处都是牛犊。")
+T(CC, "both", "medium", ["Gen.19.26", "Q011.11.81"],
+  "What happened to Lot's wife according to the Bible and the Quran?",
+  "按圣经和《古兰经》，罗得（鲁特）的妻子怎样了？",
+  "Genesis says she looked back and became a pillar of salt; the Quran says she was excepted and would be struck with the others.",
+  "创世记说她回头一看就变成了盐柱；《古兰经》说她被排除在外，将与他们同遭毁灭。")
+T(CC, "both", "hard", ["1Kgs.10.2", "Q027.27.44"],
+  "How do 1 Kings and the Quran describe the queen of Sheba's visit to Solomon?",
+  "列王纪上和《古兰经》怎样描述示巴女王拜访所罗门（素莱曼）？",
+  "Kings stresses her rich gifts and questions; the Quran tells of the glass hall and her submission to Allah with Solomon.",
+  "列王纪强调她带来丰厚的礼物并倾诉心中的问题；《古兰经》讲述玻璃宫殿和她跟随素莱曼归顺真主。")
+T(CC, "both", "medium", ["Luke.1.35", "Q003.3.47"],
+  "When Mary asked how she could conceive, what answer did the angel give in Luke and in the Quran?",
+  "麦尔彦（马利亚）问自己怎能怀孕时，路加福音和《古兰经》中天使怎样回答？",
+  "", "")
+T(CC, "both", "medium", ["Matt.11.5", "Q005.5.110"],
+  "Which miracles of Jesus are listed in both the Gospels and the Quran?",
+  "哪些耶稣（尔撒）的神迹同时记载于福音书和《古兰经》？",
+  "Both mention healing the blind and lepers and raising the dead.", "两处都提到医治瞎子和麻疯病人、使死人复活。")
+T(CC, "both", "medium", ["Matt.10.1", "Q061.61.14"],
+  "How are Jesus' disciples described in Matthew and in the Quran?",
+  "马太福音和《古兰经》怎样描述耶稣（尔撒）的门徒？",
+  "", "")
+T(CC, "both", "medium", ["Exod.32.19", "Q007.7.150"],
+  "What did Moses do with the tablets when he found the people worshipping the calf?",
+  "摩西（穆萨）发现百姓拜牛犊时，怎样处置法版？",
+  "He cast them down in both accounts (Exodus adds they broke).", "两处都说他把法版扔下（出埃及记说摔碎了）。")
+T(CC, "both", "hard", ["Exod.33.18", "Q007.7.143"],
+  "Moses asked to see God. How do Exodus and the Quran record this request?",
+  "穆萨（摩西）求见神。出埃及记和《古兰经》怎样记载这个请求？",
+  "", "")
+T(CC, "both", "medium", ["Exod.3.2", "Q028.28.29"],
+  "How did Moses first encounter God's call, according to Exodus and the Quran?",
+  "按出埃及记和《古兰经》，摩西（穆萨）怎样第一次遇到神的呼召？",
+  "Both involve a fire he saw.", "两处都提到他看见火。")
+T(CC, "both", "easy", ["Exod.15.4", "Q002.2.50"],
+  "What happened to Pharaoh's forces at the sea in both scriptures?",
+  "两部经典中法老的军队在海中怎样了？",
+  "They were drowned.", "他们被淹没了。")
+T(CC, "both", "easy", ["Exod.16.13", "Q002.2.57"],
+  "Which food did God send the Israelites in the wilderness in both scriptures?",
+  "两部经典中，神在旷野赐给以色列人什么食物？",
+  "Quails (and manna).", "鹌鹑（和吗哪/甘露）。")
+T(CC, "both", "medium", ["Exod.17.6", "Q002.2.60"],
+  "Moses struck a rock for water. What detail does the Quran add?",
+  "摩西（穆萨）击打磐石出水。《古兰经》补充了什么细节？",
+  "The Quran adds twelve springs, one for each tribe.", "《古兰经》补充说涌出十二道泉水，各部落都有饮水处。")
+T(CC, "both", "medium", ["Job.2.7", "Q038.38.41"],
+  "Who afflicted Job, according to the Bible and the Quran?",
+  "按圣经和《古兰经》，是谁击打约伯（安优卜）？",
+  "Both attribute it to Satan or the devil.", "两处都归于撒但（恶魔）。")
+T(CC, "both", "hard", ["Judg.7.5", "Q002.2.249"],
+  "A test of soldiers by how they drink from water appears in both scriptures. Which leader is it attached to in each?",
+  "以喝水方式考验士兵的故事在两部经典中都有。各归于哪位首领？",
+  "In Judges it is Gideon; in the Quran it is Saul (Talut).", "士师记中是基甸；《古兰经》中是塔鲁特（扫罗）。",
+  notes="similar motif, different leaders; good for retrieval disambiguation")
+T(CC, "both", "medium", ["Num.15.32", "Q007.7.163"],
+  "What Sabbath-breaking stories appear in the Bible and the Quran?",
+  "圣经和《古兰经》中各有什么违犯安息日的故事？",
+  "Numbers has a man gathering sticks; the Quran has a seaside town and the fish.", "民数记有人在安息日捡柴；《古兰经》有滨海城市与鱼的故事。")
+T(CC, "both", "medium", ["Exod.22.25", "Q003.3.130"],
+  "What do the Torah and the Quran say about lending at interest?",
+  "《妥拉》（律法书）和《古兰经》对放贷取利怎么说？",
+  "Both prohibit it.", "两者都禁止。")
+T(CC, "both", "medium", ["Gen.9.6", "Q005.5.32"],
+  "How do Genesis and the Quran express the gravity of killing a human being?",
+  "创世记和《古兰经》怎样表达杀人的严重性？",
+  "", "")
+T(CC, "both", "medium", ["Luke.2.7", "Q019.19.23"],
+  "Where did Mary give birth to Jesus according to Luke and the Quran?",
+  "按路加福音和《古兰经》，麦尔彦（马利亚）在哪里生下耶稣（尔撒）？",
+  "Luke mentions a manger; the Quran mentions the trunk of a palm tree.", "路加福音提到马槽；《古兰经》提到一棵椰枣树旁。")
+T(CC, "both", "hard", ["Gen.45.27", "Q012.12.96"],
+  "How did Jacob react to news that Joseph was alive, in Genesis and in the Quran?",
+  "雅各（叶尔孤白）得知约瑟（优素福）还活着时，创世记和《古兰经》各怎样描述他的反应？",
+  "In Genesis his spirit revived; in the Quran the shirt laid on his face restored his sight.",
+  "创世记说他的心苏醒了；《古兰经》说衬衣蒙在他脸上，他恢复了视力。")
+T(CC, "both", "medium", ["Gen.3.1", "Q020.20.120"],
+  "Who tempted the first humans and whom did he address, in Genesis and in the Quran?",
+  "创世记和《古兰经》中，是谁引诱始祖？他是对谁说话？",
+  "In Genesis the serpent speaks to the woman; in the Quran the devil whispers to Adam.",
+  "创世记中是蛇对女人说话；《古兰经》中是恶魔诱惑阿丹。")
+# ============================== TRAP 2 (false premises, templated with real verse) ==============================
+TR = "trap"
+_tr = [
+ ("bible", ["Gen.7.2"], "Noah took exactly two of every kind of animal into the ark — which verse says so?", "挪亚把每样动物都只带一公一母进方舟——哪节经文这样说？",
+  "False premise: clean beasts were taken by sevens and unclean by two.", "前提有误：洁净的畜类是七公七母，不洁净的才是一公一母。"),
+ ("bible", ["Deut.34.4"], "When Moses entered the Promised Land with Joshua, what did he do first?", "摩西和约书亚一同进入应许之地后，首先做了什么？",
+  "False premise: Moses was shown the land but told he would not go over into it.", "前提有误：神让摩西看见那地，却说他不得过去。"),
+ ("bible", ["Gen.5.27"], "Methuselah lived exactly 1,000 years — which verse records this?", "玛土撒拉正好活了一千岁——哪节经文记载的？",
+  "False premise: he lived 969 years.", "前提有误：他活了九百六十九岁。"),
+ ("bible", ["Judg.16.19"], "Why did Delilah cut Samson's hair with her own hands?", "大利拉为什么亲手剪了参孙的头发？",
+  "False premise: she called a man to shave off his seven locks.", "前提有误：她叫了一个人来剃除他的七条发绺。"),
+ ("bible", ["John.2.1"], "Jesus turned water into wine at a wedding in Bethlehem — what happened next?", "耶稣在伯利恒的婚宴上变水为酒——接下来发生了什么？",
+  "False premise: the wedding was in Cana of Galilee.", "前提有误：婚宴在加利利的迦拿。"),
+ ("bible", ["Jonah.3.10"], "How did God destroy Nineveh after Jonah's preaching?", "约拿传道之后，神是怎样毁灭尼尼微的？",
+  "False premise: Nineveh repented and God did not bring the threatened disaster.", "前提有误：尼尼微人悔改，神没有降下所说的灾祸。"),
+ ("bible", ["Exod.34.1"], "After Moses broke the first tablets, God refused to write the commandments again. Where is that?", "摩西摔碎第一块法版后，神拒绝再写诫命。在哪里？",
+  "False premise: God told Moses to hew two new tables and promised to write the same words.", "前提有误：神吩咐摩西再凿两块石版，并应许把同样的字写上。"),
+ ("bible", ["Gen.2.17"], "God forbade Adam to eat from the tree of life — which verse?", "神禁止亚当吃生命树的果子——哪节经文？",
+  "False premise: the forbidden tree was the tree of the knowledge of good and evil.", "前提有误：被禁止的是分别善恶树。"),
+ ("bible", ["John.11.17"], "Lazarus had been dead for three days when Jesus arrived — why three?", "耶稣到达时拉撒路已死了三天——为什么是三天？",
+  "False premise: he had lain in the grave four days.", "前提有误：他在坟墓里已经四天了。"),
+ ("bible", ["Dan.6.9"], "Why did King Nebuchadnezzar throw Daniel into the lions' den?", "尼布甲尼撒王为什么把但以理扔进狮子坑？",
+  "False premise: in Daniel 6 the decree was signed by king Darius.", "前提有误：但以理书第6章的禁令是大利乌王所立。"),
+ ("bible", ["1Kgs.11.3"], "Solomon had 300 wives — which verse?", "所罗门有三百个妻子——哪节经文？",
+  "False premise: he had 700 wives and 300 concubines.", "前提有误：他有妃七百，嫔三百。"),
+ ("bible", ["Gen.35.22"], "Jacob had ten sons, right?", "雅各有十个儿子，对吗？",
+  "False premise: the sons of Jacob were twelve.", "前提有误：雅各共有十二个儿子。"),
+ ("bible", ["Gen.25.34"], "Esau sold his birthright for bread and honey — which verse?", "以扫为了饼和蜂蜜卖了长子名分——哪节经文？",
+  "False premise: he received bread and pottage of lentils.", "前提有误：他得的是饼和红豆汤。"),
+ ("bible", ["Matt.14.17"], "Jesus fed the five thousand with seven loaves and three fish — where?", "耶稣用七个饼三条鱼喂饱五千人——在哪里？",
+  "False premise: the disciples had five loaves and two fishes.", "前提有误：门徒只有五个饼、两条鱼。"),
+ ("bible", ["Matt.26.75"], "Jesus foretold Peter would deny him twice — which verse?", "耶稣预言彼得会两次不认他——哪节经文？",
+  "False premise: the word was that he would deny him three times.", "前提有误：耶稣说的是三次不认他。"),
+ ("bible", ["Prov.6.16"], "Which verse lists the seven deadly sins?", "哪节经文列出了七宗罪？",
+  "False premise: the seven deadly sins are a later church list; Proverbs 6 lists things the Lord hates.", "前提有误：七宗罪是后世教会的归纳；箴言6章列的是耶和华所恨恶的事。"),
+ ("bible", ["1Cor.10.13"], "Which verse says God will never give you more than you can handle?", "哪节经文说神绝不会给你超过你所能承受的？",
+  "Not in those words; the closest verse is about temptation.", "没有这句原话；最接近的经文讲的是试探。"),
+ ("quran", ["Q011.11.44"], "According to the Quran, Noah's ark came to rest on Mount Ararat — which verse?", "按《古兰经》，努哈的方舟停在亚拉腊山上——哪节经文？",
+  "False premise: the Quran names Al-Judi.", "前提有误：《古兰经》说的是朱迭山。"),
+ ("quran", ["Q004.4.157"], "Which Quran verse describes the crucifixion of Jesus as an actual event?", "哪节《古兰经》经文把尔撒被钉十字架描述为真实发生的事？",
+  "False premise: the Quran denies that he was slain or crucified.", "前提有误：《古兰经》否认他被杀或被钉十字架。"),
+ ("quran", ["Q007.7.54"], "The Quran says the heavens and earth were made in seven days — where?", "《古兰经》说天地是在七日内造成的——在哪里？",
+  "False premise: the Quran says six days.", "前提有误：《古兰经》说的是六日。"),
+ ("quran", ["Q006.6.74"], "The Quran names Abraham's father Terah — which verse?", "《古兰经》称易卜拉欣的父亲为他拉——哪节经文？",
+  "False premise: the Quran names him Azar.", "前提有误：《古兰经》称他为阿宰尔。"),
+ ("quran", ["Q002.2.184"], "The Quran requires the sick and travellers to fast in Ramadan like everyone else — which verse?", "《古兰经》要求病人和旅行者与众人一样在赖买丹月斋戒——哪节经文？",
+  "False premise: they make up the same number of other days.", "前提有误：他们可依所缺的日数补斋。"),
+ ("quran", ["Q017.17.101"], "The Quran says Moses was given ten signs — where?", "《古兰经》说穆萨得到了十种迹象——在哪里？",
+  "False premise: it says nine.", "前提有误：经文说的是九种。"),
+ ("quran", ["Q002.2.185"], "In which verse does the Quran say it was revealed in the month of Shawwal?", "《古兰经》在哪节经文说它是在闪瓦鲁月降示的？",
+  "False premise: it names the month of Ramadan.", "前提有误：经文说的是赖买丹月。"),
+ ("quran", ["Q010.10.92"], "The Quran says Pharaoh's body was lost forever in the sea — which verse?", "《古兰经》说法老的遗体永远消失在海中——哪节经文？",
+  "False premise: his body was saved as a sign for those after him.", "前提有误：他的遗体被保存，作后来者的鉴戒。"),
+ ("quran", ["Q012.12.15"], "In the Quran, Joseph's brothers threw him into a river — where?", "《古兰经》中优素福的哥哥们把他扔进河里——在哪里？",
+  "False premise: they put him in the depth of a pit (well).", "前提有误：他们把他投入井底。"),
+ ("quran", ["Q018.18.25"], "The sleepers of the cave slept for one hundred years, says the Quran — which verse?", "《古兰经》说山洞里的人睡了一百年——哪节经文？",
+  "False premise: three hundred years and nine more.", "前提有误：是三百年又加九年。"),
+ ("quran", ["Q002.2.127"], "The Quran says Adam built the Kaaba — which verse?", "《古兰经》说阿丹建造了天房——哪节经文？",
+  "False premise: the verse names Abraham and Ishmael raising the foundations of the House.", "前提有误：经文说的是易卜拉欣和易司马仪树起天房的基础。"),
+ ("quran", ["Q020.20.120"], "In the Quran, the devil tempted only Eve, not Adam — which verse?", "《古兰经》中恶魔只引诱了哈娃，而不是阿丹——哪节经文？",
+  "False premise: the devil whispered to Adam.", "前提有误：经文说恶魔诱惑的是阿丹。"),
+]
+for corp, refs, en_q, zh_q, en_l, zh_l in _tr:
+    T(TR, corp, "hard", refs, en_q, zh_q, en_l, zh_l, behavior="correct_premise")
+_tnf = [
+ ("bible", "Where does the Bible say \"The end justifies the means\"?", "圣经哪里说「为达目的可以不择手段」？",
+  "Nowhere; this is not a biblical saying. The system should say it is not found.", "圣经中没有这句话。系统应说明找不到。"),
+ ("bible", "Which Bible verse describes Jesus as having blue eyes?", "哪节圣经描述耶稣有一双蓝眼睛？",
+  "No verse describes the colour of Jesus' eyes. The system should say it is not found.", "没有经文描述耶稣眼睛的颜色。系统应说明找不到。"),
+ ("bible", "Where does the Bible mention purgatory by name?", "圣经哪里明确提到了炼狱？",
+  "The word purgatory does not occur in the KJV or CUV text. The system should say it is not found rather than citing a verse as naming it.",
+  "KJV 与和合本正文中都没有炼狱一词。系统应说明找不到，而不是声称某节经文提到了它。"),
+ ("bible", "Which verse says Mary Magdalene was the wife of Jesus?", "哪节经文说抹大拉的马利亚是耶稣的妻子？",
+  "No verse says this; the Bible never describes Jesus as married. The system should not invent a reference.",
+  "没有经文这样说；圣经从未说耶稣结过婚。系统不应编造出处。"),
+ ("bible", "Where does the KJV use the word \"rapture\"?", "钦定本（KJV）哪里出现了 rapture（被提）这个词？",
+  "The word rapture does not occur in the KJV text. The system should say it is not found rather than citing a verse as containing it.",
+  "KJV 正文中没有出现 rapture 这个词。系统应说明找不到，而不是声称某节经文含有此词。"),
+ ("quran", "Which Quran verse says martyrs will receive 72 virgins?", "哪节《古兰经》说殉道者将得到72位处女？",
+  "No Quran verse gives this number; it comes from hadith literature. The system should not cite a Quran reference.",
+  "《古兰经》中没有这个数字，它出自圣训文献。系统不应引用《古兰经》出处。"),
+ ("quran", "Which surah says \"The ink of the scholar is holier than the blood of the martyr\"?", "哪一章说「学者的墨水比殉道者的血更神圣」？",
+  "No surah contains this; it is a saying of disputed origin. The system should not cite a Quran reference.", "没有哪一章有这句话；它是一句来源有争议的格言。系统不应引用《古兰经》出处。"),
+ ("quran", "Which Quran verse gives the number of daily prayers as five?", "哪节《古兰经》明确说每日礼拜是五次？",
+  "No single verse states the number five; the five daily prayers are fixed by hadith and practice. The system should not invent a verse.",
+  "没有哪节经文明确说是五次；每日五次礼拜由圣训和传统确定。系统不应编造经文。"),
+ ("quran", "Where in the Quran is the Prophet's wife Aisha mentioned by name?", "《古兰经》哪里提到了先知的妻子阿伊莎的名字？",
+  "Aisha is never named in the Quran. The system should say it is not found.", "《古兰经》中没有出现阿伊莎的名字。系统应说明找不到。"),
+]
+for corp, en_q, zh_q, en_a, zh_a in _tnf:
+    I(TR, corp, "medium", [], en=(en_q, en_a), zh=(zh_q, zh_a), behavior="not_found")
+
+# ============================== NEGATIVE 3 ==============================
+NEG3 = [
+ ("What does the Bible say about artificial intelligence?", "圣经怎样谈论人工智能？"),
+ ("Which surah mentions the Eiffel Tower?", "《古兰经》哪一章提到了埃菲尔铁塔？"),
+ ("What is the boiling point of water in Fahrenheit?", "水的沸点是华氏多少度？"),
+ ("Which verse predicts the Apollo moon landing?", "哪节经文预言了阿波罗登月？"),
+ ("What does the Quran say about electric cars?", "《古兰经》对电动汽车怎么说？"),
+ ("Who wrote the Harry Potter books?", "《哈利·波特》是谁写的？"),
+ ("Which Bible verse mentions the city of Moscow?", "哪节圣经提到了莫斯科？"),
+ ("What does the Bhagavad Gita say about duty?", "《薄伽梵歌》对职责有什么教导？"),
+ ("Which verse of the Quran mentions the internet?", "《古兰经》哪节经文提到了互联网？"),
+ ("Explain the rules of chess.", "请解释国际象棋的规则。"),
+ ("What does the Bible say about video games?", "圣经对电子游戏怎么说？"),
+ ("Which surah talks about the Roman emperor Nero?", "哪一章谈到了罗马皇帝尼禄？"),
+ ("What is the tallest mountain in Africa?", "非洲最高的山是哪座？"),
+ ("Which Bible verse mentions tobacco or smoking cigarettes?", "哪节圣经提到了烟草或吸烟？"),
+ ("What does the Quran say about the stock market?", "《古兰经》对股票市场怎么说？"),
+ ("What does the Book of Mormon say about the golden plates?", "《摩尔门经》关于金页片怎么说？"),
+ ("Which verse mentions the Great Wall of China?", "哪节经文提到了中国的长城？"),
+ ("How many players are on a football (soccer) team?", "一支足球队有多少名球员？"),
+ ("Which surah mentions the Americas?", "哪一章提到了美洲？"),
+ ("What does the Talmud say about Shabbat candles?", "《塔木德》关于安息日蜡烛怎么说？"),
+ ("Which Bible verse describes how to make coffee?", "哪节圣经描述了怎样煮咖啡？"),
+ ("What does the Quran say about climate change and carbon emissions?", "《古兰经》对气候变化和碳排放怎么说？"),
+ ("Translate 'good morning' into Japanese.", "把「早上好」翻译成日语。"),
+ ("How do I bake sourdough bread?", "怎样烤酸面包？"),
+ ("What does the Avesta say about Ahura Mazda?", "《阿维斯陀》怎样描述阿胡拉·马兹达？"),
+ ("Which verse mentions Martin Luther?", "哪节经文提到了马丁·路德？"),
+]
+for en_q, zh_q in NEG3:
+    I("negative", "none", "easy", [],
+      en=(en_q, "The Bible (KJV) and Quran corpora contain no passage on this topic; the system should say so instead of citing unrelated verses."),
+      zh=(zh_q, "圣经（和合本）和《古兰经》语料中没有涉及该主题的经文；系统应说明找不到，而不是引用无关经文。"),
+      behavior="not_found")
+# ============================== FACTUAL 2 ==============================
+_f2 = [
+ ("bible", "Gen.4.2", "What were the occupations of Cain and Abel?", "该隐和亚伯各以什么为业？"),
+ ("bible", "Gen.4.17", "What did Cain name the city he built?", "该隐建造的城叫什么名字？"),
+ ("bible", "Gen.10.9", "Who is called a mighty hunter before the Lord?", "谁被称为在耶和华面前英勇的猎户？"),
+ ("bible", "Gen.11.31", "From which city did Terah set out with Abram toward Canaan?", "他拉带着亚伯兰从哪座城出发往迦南去？"),
+ ("bible", "Gen.29.20", "How many years did Jacob first serve for Rachel?", "雅各起初为拉结服事了几年？"),
+ ("bible", "Gen.41.46", "How old was Joseph when he stood before Pharaoh?", "约瑟站在法老面前时多大年纪？"),
+ ("bible", "Exod.7.7", "How old were Moses and Aaron when they spoke to Pharaoh?", "摩西和亚伦与法老说话时各多少岁？"),
+ ("bible", "Num.13.33", "To what did the spies compare themselves next to the sons of Anak?", "探子们说自己在亚衲族人面前像什么？"),
+ ("bible", "Judg.4.4", "Which prophetess judged Israel, and whose wife was she?", "哪位女先知作以色列的士师？她是谁的妻子？"),
+ ("bible", "Ruth.4.17", "What was the name of Ruth's son, and whose grandfather was he?", "路得的儿子叫什么名字？他是谁的祖父？"),
+ ("bible", "1Sam.17.4", "How tall was Goliath of Gath?", "迦特人歌利亚身高多少？"),
+ ("bible", "2Sam.5.4", "How old was David when he began to reign, and how long did he reign?", "大卫登基时几岁？在位多少年？"),
+ ("bible", "1Kgs.6.1", "In what year after the Exodus did Solomon begin building the temple?", "所罗门在以色列人出埃及后第几年开工建殿？"),
+ ("bible", "Esth.2.17", "Whom did Esther replace as queen?", "以斯帖代替谁作王后？"),
+ ("bible", "Dan.1.7", "What Babylonian names were given to Daniel and his three friends?", "但以理和他的三个朋友被起了什么巴比伦名字？"),
+ ("bible", "Matt.4.18", "Which two brothers did Jesus see casting a net by the sea of Galilee?", "耶稣在加利利海边看见哪两兄弟撒网？"),
+ ("bible", "Mark.1.6", "What did John the Baptist wear and eat?", "施洗约翰穿什么、吃什么？"),
+ ("bible", "John.19.39", "What did Nicodemus bring for Jesus' burial?", "尼哥底母为安葬耶稣带来了什么？"),
+ ("bible", "Acts.9.11", "On which street was Saul staying in Damascus, and in whose house?", "扫罗在大马士革住在哪条街、谁的家里？"),
+ ("bible", "Acts.16.14", "What did Lydia sell, and which city was she from?", "吕底亚卖什么？她是哪个城的人？"),
+ ("bible", "Acts.11.26", "Where were the disciples first called Christians?", "门徒在哪里首次被称为基督徒？"),
+ ("quran", "Q019.19.28", "In Surah Maryam, how do Mary's people address her when she brings the child?", "在《麦尔彦》章中，麦尔彦抱着孩子回来时，族人怎样称呼她？"),
+ ("quran", "Q027.27.17", "Of what three kinds were the armies gathered to Solomon?", "被召集到素莱曼面前的大军由哪三类组成？"),
+ ("quran", "Q038.38.30", "Whom did God bestow on David, according to Surah Sad?", "按《萨德》章，真主把谁赐予达五德？"),
+ ("quran", "Q018.18.83", "Which figure are people said to ask the Prophet about in Surah Al-Kahf 18:83?", "《山洞》章18:83说人们询问先知关于哪个人物的故事？"),
+ ("quran", "Q012.12.20", "For what price was Joseph sold?", "优素福被以什么价格卖掉？"),
+ ("quran", "Q003.3.37", "Who was made Mary's guardian, and what did he find with her in the sanctuary?", "谁被指定抚育麦尔彦？他在内殿里发现她面前有什么？"),
+ ("quran", "Q002.2.102", "Which two angels in Babel are named in the Quran?", "《古兰经》中提到巴比伦的哪两个天神？"),
+ ("quran", "Q105.105.3", "What was sent against the army in Surah Al-Fil?", "《象》章中真主派遣什么去攻击那支军队？"),
+]
+for corp, ref, en_q, zh_q in _f2:
+    T("factual", corp, "easy", [ref], en_q, zh_q)
 # ============================== NUMBERING (exact ref resolution, versification edge cases) ==============================
 I("numbering", "bible", "medium", ["Ps.23.1"],
   en=("What is Psalm 23 verse 1?",
@@ -1675,7 +2443,7 @@ def _cite(refs):
 def _human(refs, lang):
     b, c, v = _span(refs)
     tr = LANG_TR[lang][corpus_of(refs[0])]
-    name = NAME_FIX.get((lang, b)) or NAMES.get((tr, b), b)
+    name = (NAME_FIX.get((lang, b)) or NAMES.get((tr, b), b)).replace('"', "")
     if lang == "en" and b == "Ps" and len(refs) == 1:
         name = "Psalm"
     if b.startswith("Q"):
@@ -1695,6 +2463,8 @@ def _text(idx, refs, lang):
         if not t or not t.strip():
             raise KeyError(f"generated item: {r} missing/empty in {tr}")
         parts.append(t.strip())
+    if parts:
+        parts[-1] = parts[-1].rstrip(" ,;:，；：、")
     return (" " if lang == "en" else "").join(parts)
 
 
@@ -1769,11 +2539,7 @@ _Q_XL = {"en": ["Which verse reads 「{f}」 in Chinese, and what does it say in
                 '有人引用英文 "{f}"，这是哪一节？中文经文是什么？']}
 
 
-def _ans(idx, refs, lang, with_place):
-    t = _text(idx, refs, lang)
-    cite = _cite(refs)
-    if lang == "en":
-        return (f"{_human(refs, lang)}: \"{t}\" ({cite})." if with_place else f"\"{t}\" ({cite}).")
+def _zh_balance(t):
     # CUV verses often open/close a speech quote mid-paragraph; drop unbalanced
     # brackets and turn nested ones into 『』 so the answer quote is well formed.
     if t.count("「") > t.count("」") and t.startswith("「"):
@@ -1784,17 +2550,70 @@ def _ans(idx, refs, lang, with_place):
         i = t.rindex("「"); t = t[:i] + t[i + 1:]
     while t.count("」") > t.count("「"):
         i = t.index("」"); t = t[:i] + t[i + 1:]
-    t = t.replace("「", "『").replace("」", "』")
+    return t.replace("「", "『").replace("」", "』")
+
+
+def _ans(idx, refs, lang, with_place):
+    t = _text(idx, refs, lang)
+    cite = _cite(refs)
+    if lang == "en":
+        return (f"{_human(refs, lang)}: \"{t}\" ({cite})." if with_place else f"\"{t}\" ({cite}).")
+    t = _zh_balance(t)
     return (f"{_human(refs, lang)}：「{t}」（{cite}）" if with_place else f"「{t}」（{cite}）")
 
 
+def _t_answer(idx, groups, lang, lead):
+    pieces = []
+    for g in groups:
+        t = _text(idx, g, lang)
+        if lang == "en":
+            pieces.append(f"{_human(g, lang)}: \"{t.replace(chr(34), '')}\" ({_cite(g)})")
+        else:
+            pieces.append(f"{_human(g, lang)}：「{_zh_balance(t)}」（{_cite(g)}）")
+    if lang == "en":
+        body = "; ".join(pieces) + "."
+        return f"{lead.strip()} {body}" if lead.strip() else body
+    body = "；".join(pieces) + "。"
+    return f"{lead.strip()}{body}" if lead.strip() else body
+
+
+def expand_templated(idx, errors):
+    for n, t in enumerate(TITEMS):
+        refs = [r for g in t["groups"] for r in g]
+        where = f"T#{n} ({t['cat']}) {refs[:2]}"
+        for g in t["groups"]:
+            for a, b in zip(g, g[1:]):
+                ba, ca, va = a.split("."); bb, cb, vb = b.split(".")
+                if (ba, ca) != (bb, cb) or int(vb) != int(va) + 1:
+                    errors.append(f"{where}: group {g} is not consecutive")
+        try:
+            en = (t["en_q"], _t_answer(idx, t["groups"], "en", t["en_lead"]))
+            zh = (t["zh_q"], _t_answer(idx, t["groups"], "zh", t["zh_lead"]))
+        except KeyError as ex:
+            errors.append(f"{where}: {ex}")
+            continue
+        ITEMS.append(dict(cat=t["cat"], corpus=t["corpus"], diff=t["diff"], refs=refs, en=en, zh=zh,
+                          en_refs=None, zh_refs=None, behavior=t["behavior"],
+                          notes=t["notes"] or "templated: hand-written question, verbatim quoted answer"))
+
+
 def expand_generated(idx, errors):
+    expand_templated(idx, errors)
     used = collections.defaultdict(set)    # category -> refs already used
+    used_any = set()
     for it in ITEMS:
         for r in (it["refs"] or []) + (it["en_refs"] or []) + (it["zh_refs"] or []):
             used[it["cat"]].add(r)
+            used_any.add(r)
+    for e in GEN_LOOKUP + GEN_QUOTE + GEN_XL:
+        e = e[0] if isinstance(e, tuple) else e
+        used_any.update(_as_list(e))
+    try:
+        auto_cover(idx, used_any)
+    except ValueError as ex:
+        errors.append(str(ex))
     specs = ([("verse_lookup", "L", e) for e in GEN_LOOKUP] + [("verse_lookup", "Q", e) for e in GEN_QUOTE]
-             + [("cross_lingual", "X", e) for e in GEN_XL])
+             + [("cross_lingual", "X", e) for e in GEN_XL] + [("verse_lookup", "C", e) for e in GEN_CONT])
     for n, (cat, kind, e) in enumerate(specs):
         ov = {"en": None, "zh": None}
         if isinstance(e, tuple):
@@ -1811,6 +2630,8 @@ def expand_generated(idx, errors):
                 k = n % 3
                 if kind == "L":
                     q = _Q_LOOKUP[lang][k].format(h=_human(refs, lang)); a = _ans(idx, refs, lang, False)
+                elif kind == "C":
+                    q = _Q_CONT[lang][k].format(f=_fragment(idx, refs[0], lang, ov[lang])); a = _ans(idx, refs, lang, True)
                 elif kind == "Q":
                     q = _Q_QUOTE[lang][k].format(f=_fragment(idx, refs[0], lang, ov[lang])); a = _ans(idx, refs, lang, True)
                 else:
@@ -1820,7 +2641,7 @@ def expand_generated(idx, errors):
             errors.append(f"{where}: {ex}")
             continue
         corpus = corpus_of(refs[0])
-        diff = {"L": "easy", "Q": "medium", "X": "medium"}[kind]
+        diff = {"L": "easy", "Q": "medium", "X": "medium", "C": "medium"}[kind]
         ITEMS.append(dict(cat=cat, corpus=corpus, diff=diff, refs=refs, en=qa["en"], zh=qa["zh"],
                           en_refs=None, zh_refs=None, behavior="answer",
                           notes="generated: answer is the verbatim verse text"))
@@ -1886,6 +2707,94 @@ GEN_XL += [
     ("Q017.17.36", "follow not that whereof thou hast no knowledge", None), "Q020.20.46", "Q028.28.88", "Q039.39.36", "Q040.40.44", "Q049.49.11",
     "Q055.55.60", "Q059.59.18", "Q065.65.7", "Q073.73.8", "Q094.94.1", "Q097.97.5", "Q113.113.5",
 ]
+# ============================== AUTO COVERAGE (deterministic) ==============================
+# Guarantees breadth: every one of the 66 Bible books gets AUTO_PER_BOOK extra generated
+# items spread evenly over its chapters, and every one of the 114 surahs gets
+# AUTO_PER_SURAH. Verses are chosen with a fixed-seed RNG (stable across runs) from
+# candidates that pass length / genealogy / textual-note filters and are not used by any
+# other item. The kind rotates through lookup / reverse-quote / cross-lingual / complete.
+AUTO_PER_BOOK = 5
+AUTO_PER_SURAH = 2
+GEN_CONT: list = []
+AUTO_SKIPPED: list = []
+_Q_CONT = {"en": ['Complete this verse and give its reference: "{f} ..."',
+                  'Finish the quotation and cite it: "{f} ..."',
+                  'How does the verse beginning "{f}" continue, and where is it?'],
+           "zh": ["请补全这节经文并给出出处：「{f}……」",
+                  "「{f}……」下文是什么？出自哪里？",
+                  "以「{f}」开头的经文全文是什么？出处？"]}
+_BAD = {"kjv": re.compile(r"\bbegat\b|were numbered|\bthe sons of\b.*\bthe sons of\b|[()]"),
+        "cuv": re.compile(r"生了|被数的|[（）()]|的子孙.*的子孙"),
+        "quran_en": re.compile(r"^$"), "quran_zh": re.compile(r"^$")}
+_LEN = {"kjv": (60, 320), "cuv": (15, 140), "quran_en": (40, 350), "quran_zh": (12, 160)}
+
+
+def _ok(idx, ref):
+    for tr in (("quran_en", "quran_zh") if ref.startswith("Q") else ("kjv", "cuv")):
+        t = idx.get((tr, ref))
+        if not t or _BAD[tr].search(t) or not (_LEN[tr][0] <= len(t) <= _LEN[tr][1]):
+            return False
+    return True
+
+
+def _fits(idx, ref, kind):
+    try:
+        for lang in ("en", "zh"):
+            if kind in ("Q", "C"):
+                _fragment(idx, ref, lang)
+            elif kind == "X":
+                _fragment(idx, ref, OTHER[lang])
+        return True
+    except ValueError:
+        return False
+
+
+def auto_cover(idx, used_any):
+    import random
+    chapters = collections.defaultdict(lambda: collections.defaultdict(list))  # book -> ch -> [refs]
+    order = []
+    for (tr, ref) in idx:
+        if tr not in ("kjv", "quran_en"):
+            continue
+        b, c, v = ref.split(".")
+        if b not in chapters:
+            order.append(b)
+        chapters[b][int(c)].append(ref)
+    kinds = "LQXC"
+    k_i = 0
+    for b in order:
+        chs = sorted(chapters[b])
+        want = AUTO_PER_SURAH if b.startswith("Q") else AUTO_PER_BOOK
+        if b.startswith("Q"):     # a surah is one chapter: spread over its verses instead
+            pool_by_slot = []
+            refs_all = chapters[b][chs[0]]
+            for s in range(want):
+                lo, hi = (s * len(refs_all)) // want, ((s + 1) * len(refs_all)) // want
+                pool_by_slot.append(refs_all[lo:hi] or refs_all)
+        else:
+            pool_by_slot = [chapters[b][chs[(s * len(chs)) // want + len(chs) // (2 * want)]]
+                            for s in range(want)]
+        for s, pool in enumerate(pool_by_slot):
+            rnd = random.Random(f"{b}:{s}")
+            cands = [r for r in pool if r not in used_any and _ok(idx, r)]
+            rnd.shuffle(cands)
+            if not cands:   # tiny surah / chapter: relax the length filter
+                cands = [r for r in pool if r not in used_any]
+                rnd.shuffle(cands)
+            placed = False
+            for tries in range(len(kinds)):
+                kind = kinds[(k_i + tries) % 4]
+                for r in cands:
+                    if _fits(idx, r, kind):
+                        {"L": GEN_LOOKUP, "Q": GEN_QUOTE, "X": GEN_XL, "C": GEN_CONT}[kind].append(r)
+                        used_any.add(r)
+                        placed = True
+                        break
+                if placed:
+                    break
+            k_i += 1
+            if not placed:      # e.g. al-Fatiha: every verse is already used elsewhere
+                AUTO_SKIPPED.append(f"{b}:{s}")
 
 # ---------------------------------------------------------------------------
 # Builder

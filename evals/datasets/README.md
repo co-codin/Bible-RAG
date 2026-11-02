@@ -6,12 +6,12 @@ Golden question/answer sets for checking the Bible-RAG retriever and generator i
 
 | File | Items | Purpose |
 |---|---|---|
-| `golden_en.jsonl` | 643 | English questions; contexts come from `kjv` / `quran_en` |
-| `golden_zh.jsonl` | 643 | Chinese questions; contexts come from `cuv` / `quran_zh` |
-| `golden_smoke.jsonl` | 54 | Fixed, stratified subset (3 per category × 9 categories × en+zh) for fast CI runs |
+| `golden_en.jsonl` | 1,505 | English questions; contexts come from `kjv` / `quran_en` |
+| `golden_zh.jsonl` | 1,505 | Chinese questions; contexts come from `cuv` / `quran_zh` |
+| `golden_smoke.jsonl` | 60 | Fixed, stratified subset (3 per category × 10 categories × en+zh) for fast CI runs |
 | `build_golden.py` | – | Single source of truth: item definitions plus the builder and validator |
 
-**Total: 1,286 items** (643 en + 643 zh), covering **66 Bible books** and **79 surahs**.
+**Total: 3,010 items** (1,505 en + 1,505 zh), covering **all 66 Bible books** and **all 114 surahs**.
 
 ## Rebuild
 
@@ -67,44 +67,56 @@ holds the refs that are correct for its own translation.
 
 | Category | en | zh | Total | What it tests |
 |---|---:|---:|---:|---|
-| `factual` | 82 | 82 | 164 | Narrative and factual questions ("How was Naaman healed?", "What did Shu'eyb command Midian?") |
-| `topical` | 29 | 29 | 58 | Multi-verse thematic questions (forgiveness, anger, orphans, …) |
-| `verse_lookup` | 301 | 301 | 602 | "Quote John 3:16", "Which verse says '…'?", "Where is '…' found?" |
-| `cross_lingual` | 70 | 70 | 140 | Question quotes the verse in the *other* language; the answer must find it in this language |
-| `cross_corpus` | 31 | 31 | 62 | Bible vs Quran comparisons (Noah, Joseph's shirt, Abraham's guests, eye for an eye, …); includes stories the two tell differently |
-| `paraphrase` | 50 | 50 | 100 | **Hard**: everyday wording with almost no keywords from the verse ("don't go to bed angry" → Eph 4:26) |
-| `negative` | 28 | 28 | 56 | Out of scope (Bhagavad Gita, Book of Mormon, SQL, photosynthesis, …): must answer `not_found` and cite nothing |
-| `trap` | 30 | 30 | 60 | Misquotes and false premises ("God helps those who help themselves", "Moses's ark", "Iblis was an angel", "40 pieces of silver") |
+| `factual` | 111 | 111 | 222 | Narrative and factual questions ("How was Naaman healed?", "Where were the disciples first called Christians?") |
+| `topical` | 79 | 79 | 158 | Multi-verse thematic questions (forgiveness, pride, worry, orphans, gratitude, …) |
+| `verse_lookup` | 714 | 714 | 1,428 | "Quote John 3:16", "Which verse says '…'?", "Where is '…' found?", "Complete this verse: '…'" |
+| `cross_lingual` | 207 | 207 | 414 | Question quotes the verse in the *other* language; the answer must find it in this language |
+| `cross_corpus` | 61 | 61 | 122 | Bible vs Quran comparisons (Noah, Joseph's shirt, Moses' staff, manna and quails, …); includes stories the two tell differently |
+| `paraphrase` | 109 | 109 | 218 | **Hard**: everyday wording with almost no keywords from the verse ("don't go to bed angry" → Eph 4:26) |
+| `negative` | 54 | 54 | 108 | Out of scope (Bhagavad Gita, Book of Mormon, SQL, electric cars, …): must answer `not_found` and cite nothing |
+| `trap` | 68 | 68 | 136 | Misquotes and false premises ("God helps those who help themselves", "two of every animal", "Ararat in the Quran", "Delilah cut his hair herself") |
 | `numbering` | 22 | 22 | 44 | Versification edge cases (Psalm superscriptions, Mal 4 / Heb Mal 3, Rev 12:18, John 7:53) and refs that do not exist (Genesis 51:1, Surah 115, al-Baqarah 287) |
+| `multi_hop` | 80 | 80 | 160 | Two or more passages must be combined (prophecy and its fulfilment, NT quoting OT, a person across two books, Quran verses read together) |
 
 **Corpus mix:**
 
 | Corpus | Items |
 |---|---:|
-| bible | 718 |
-| quran | 450 |
-| both | 62 |
-| none | 56 |
+| bible | 1,710 |
+| quran | 1,070 |
+| both | 122 |
+| none | 108 |
 
-Among single-corpus items that is about 61% Bible and 39% Quran.
+Among single-corpus items that is about 62% Bible and 38% Quran.
 
 **Behavior mix:**
 
 | Behavior | Items |
 |---|---:|
-| answer | 1,158 |
-| correct_premise | 42 |
-| not_found | 86 |
+| answer | 2,754 |
+| correct_premise | 100 |
+| not_found | 156 |
 
 ### Hand-written vs generated items
 
-- **638 hand-written items:** factual, topical, cross_corpus, paraphrase, negative, trap
-  and numbering, plus part of verse_lookup and cross_lingual. For each one the answer
-  was written against the verse text that was fetched for it. Every quoted span in
-  `expected_answer` is checked automatically against the contexts.
-- **648 template-generated items:** 540 verse_lookup and 108 cross_lingual, built from
-  curated ref lists. Their answer is the verbatim verse text, and they carry
+- **1,262 hand-written items:** all factual, topical, cross_corpus, paraphrase, multi_hop,
+  negative, trap and numbering items, plus 62 verse_lookup and 32 cross_lingual items.
+  - Some are fully hand-written: the question and the answer prose.
+  - Others (most of the v2 additions) have a hand-written question and a hand-picked ref,
+    and the answer is built from the verbatim verse text (optionally after a short
+    hand-written lead such as "False premise: …"). This rules out misquotation in the
+    answer while the question and choice of verse stay curated.
+  - Every ref was looked up in the corpus before it was used, and every quoted span in
+    `expected_answer` is checked automatically against the contexts.
+- **1,748 template-generated items:** 1,366 verse_lookup and 382 cross_lingual. They carry
   `notes: "generated: answer is the verbatim verse text"`.
+  - Most come from curated ref lists.
+  - **Auto coverage** adds a deterministic set on top: 5 per Bible book spread over its
+    chapters, and 2 per surah. The verses are picked with a fixed-seed RNG from those
+    that pass length, genealogy and textual-note filters and are not used elsewhere.
+    The question kind rotates through lookup, reverse quote, cross-lingual and
+    "complete this verse". Surahs with no suitable unused verse (al-Fatiha) are
+    skipped and listed in `AUTO_SKIPPED`.
   - Reverse-lookup questions ("Which verse says '…'?") quote a fragment of the verse.
   - The fragment is **normalised**: quote marks, parentheticals (Psalm superscriptions,
     CUV alternative-reading notes, Pickthall's bracketed glosses) and leading speech
@@ -179,7 +191,7 @@ evaluate(test_cases=cases, metrics=[ContextualPrecisionMetric(), ContextualRecal
 
 `golden_smoke.jsonl` is regenerated on every build. It takes 3 items per category,
 evenly spaced through that category, in both languages (same item number), and keeps
-the original ids. It has 54 records: 22 bible, 20 quran, 6 both and 6 none. It
+the original ids. It has 60 records: 34 bible, 14 quran, 6 both and 6 none. It
 includes negative, trap and numbering items, so the CI run also exercises "not found"
 handling.
 
