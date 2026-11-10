@@ -21,6 +21,7 @@ dev = [
     "anthropic>=0.40",
     "pytest>=8",
     "ruff>=0.6",
+    "httpx>=0.28.1",
 ]
 
 [build-system]
