@@ -9,6 +9,7 @@ Milvus stores both in one row, and hybrid search fuses them with RRF.
 from __future__ import annotations
 
 import os
+from functools import cache
 
 DENSE_DIM = 1024
 MODEL_NAME = "BAAI/bge-m3"
@@ -49,8 +50,25 @@ class BGEM3:
         sparse = [to_milvus_sparse(w) for w in out["lexical_weights"]]
         return dense, sparse
 
+    def encode_dense(self, texts: list[str], batch_size: int = 32) -> list[list[float]]:
+        out = self.model.encode(
+            texts,
+            batch_size=batch_size,
+            max_length=self.max_length,
+            return_dense=True,
+            return_sparse=False,
+            return_colbert_vecs=False,
+        )
+        return [v.tolist() for v in out["dense_vecs"]]
+
 
 def to_milvus_sparse(weights: dict) -> dict[int, float]:
     """FlagEmbedding returns {'123': np.float16(0.2), ...}; Milvus wants {123: 0.2}."""
     sp = {int(k): float(v) for k, v in weights.items() if float(v) > 0}
     return sp or {0: 1e-6}  # Milvus rejects an empty sparse row
+
+
+@cache
+def get_model() -> BGEM3:
+    """Process-wide encoder so retrieval and the input guard share one model."""
+    return BGEM3()

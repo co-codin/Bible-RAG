@@ -1,7 +1,11 @@
 """Input and output guardrails for the generation pipeline.
 
-Input: length limit, prompt-injection patterns, and an off-topic check
-(questions that are not about Bible or Quran text are refused politely).
+Input: length limit, prompt-injection patterns, an off-topic check
+(questions that are not about Bible or Quran text are refused politely),
+and a cheap bge-m3 dense similarity check against in-domain / out-of-domain
+prototypes. Hard rule refusals always stand; the semantic layer can allow a
+cue-less but clearly in-domain question, or refuse a cued but clearly
+out-of-domain one. No LLM is used on this path.
 
 Output: every cited canon_ref must be among the retrieved refs (unknown refs
 are stripped; if none remain, the answer is refused), a basic tone check, and
@@ -16,6 +20,12 @@ from dataclasses import dataclass, field
 from pathlib import Path
 
 from bible_rag.api.schemas import MAX_QUERY_LEN
+from bible_rag.generation.topic import (
+    DenseEmbedder,
+    TopicChecker,
+    TopicDecision,
+    get_checker,
+)
 from bible_rag.retrieval.hybrid import Hit
 
 REPO_ROOT = Path(__file__).resolve().parents[3]
@@ -121,8 +131,12 @@ _OTHER_CANON = re.compile(
         | analects | \bavesta\b | \bbuddha\b | four\s+noble\s+truths
         | \bconfucius\b | \bkaran\b | \bvedas?\b | upanishad
         | ninety[- ]five\s+theses | \bquran\s+of\s+the\s+latter
-        | 摩门(\s*经)? | 薄伽梵歌 | 塔木德 | 圣训 | 论语 | 佛陀 | 阿维斯塔
+        | book\s+of\s+tobit | \btobit\b | book\s+of\s+judith
+        | \b[12]\s*maccabees | wisdom\s+of\s+solomon | \becclesiasticus
+        | \bsirach\b | book\s+of\s+baruch
+        | 摩门(\s*经)? | 摩尔门 | 薄伽梵歌 | 塔木德 | 圣训 | 论语 | 佛陀 | 阿维斯塔
         | 四谛 | 孔子 | 吠陀
+        | 多俾亚 | 多比传 | 友弟德 | 玛加比 | 馬加比 | 德训篇 | 智慧篇 | 巴录书 | 巴錄書
     )
     """,
     re.IGNORECASE | re.VERBOSE,
@@ -253,9 +267,8 @@ def _has_scripture_cue(text: str) -> bool:
     return bool(_NAME_RE and _NAME_RE.search(text))
 
 
-def check_input(query: str, *, max_len: int = MAX_QUERY_LEN) -> GuardDecision:
-    lang = detect_lang(query)
-    stripped = query.strip()
+def _hard_rules(stripped: str, *, max_len: int, lang: str) -> GuardDecision | None:
+    """Refusals that the semantic layer must not override."""
     if not stripped:
         return GuardDecision(False, "too_long", refusal_message("too_long", lang))
     if len(stripped) > max_len:
@@ -265,7 +278,46 @@ def check_input(query: str, *, max_len: int = MAX_QUERY_LEN) -> GuardDecision:
     # Other-canon questions are off-topic unless they also ask about the Bible or Quran.
     if _OTHER_CANON.search(stripped) and not _BIBLE_OR_QURAN.search(stripped):
         return GuardDecision(False, "off_topic", refusal_message("off_topic", lang))
-    if not _has_scripture_cue(stripped):
+    return None
+
+
+def check_input(
+    query: str,
+    *,
+    max_len: int = MAX_QUERY_LEN,
+    embedder: DenseEmbedder | None = None,
+    checker: TopicChecker | None = None,
+    use_semantic: bool | None = None,
+) -> GuardDecision:
+    """Length, injection, and other-canon rules, then an optional bge-m3 topic check.
+
+    Hard rule refusals always stand. If a topic checker is available:
+    clearly in-domain questions are allowed even without a scripture cue;
+    clearly out-of-domain questions are refused even with a cue; the
+    ambiguous band keeps the cue-based rule (no cue -> refuse, else allow).
+    """
+    lang = detect_lang(query)
+    stripped = query.strip()
+    hard = _hard_rules(stripped, max_len=max_len, lang=lang)
+    if hard is not None:
+        return hard
+    has_cue = _has_scripture_cue(stripped)
+
+    topic: TopicDecision | None = None
+    if use_semantic is False:
+        topic = None
+    else:
+        active = checker
+        if active is None:
+            active = get_checker(embedder)
+        if active is not None:
+            topic = active.decide(stripped)
+
+    if topic is not None and topic.clearly_in:
+        return GuardDecision(True)
+    if topic is not None and topic.clearly_out:
+        return GuardDecision(False, "off_topic", refusal_message("off_topic", lang))
+    if not has_cue:
         return GuardDecision(False, "off_topic", refusal_message("off_topic", lang))
     return GuardDecision(True)
 

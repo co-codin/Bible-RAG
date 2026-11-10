@@ -73,13 +73,15 @@ def test_input_rejects_off_topic_and_other_canon():
         "What does the Book of Mormon say about the Nephites?",
         "What does the Bhagavad Gita teach about karma yoga?",
         "今天天气怎么样？",
+        "Summarize the Book of Tobit.",
+        "《摩尔门经》怎样描述尼腓人？",
     ):
         decision = check_input(q)
         assert not decision.ok and decision.reason == "off_topic", (q, decision)
 
 
 def test_input_allows_scripture_questions_about_modern_topics():
-    # These are in-scope for the system (it should later say "not found"), not off-topic.
+    # The rule layer allows these (a cue is present). The semantic layer may still refuse them.
     for q in (
         "What does the Bible say about smartphones?",
         "Does the Bible say COVID-19 vaccines are forbidden?",

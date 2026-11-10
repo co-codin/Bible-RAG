@@ -64,9 +64,9 @@ class Hit:
 
 @cache
 def _model():
-    from bible_rag.embedding.bge_m3 import BGEM3  # heavy: pulls in torch
+    from bible_rag.embedding.bge_m3 import get_model  # heavy: pulls in torch
 
-    return BGEM3()
+    return get_model()
 
 
 @cache
