@@ -52,6 +52,9 @@ curl -sG http://localhost:8000/search --data-urlencode 'query=love thy neighbour
 
 `/search` accepts `query` (required, max 1000 characters), optional `translation` (`kjv` | `cuv` | `quran_en` | `quran_zh`), `corpus` (`bible` | `quran`), `mode` (`hybrid` default, or `dense` / `sparse`), and `limit` (1–20, default 10).
 
+`POST /answer` runs the input guard, hybrid search, generation, and the output guard. Generation defaults to OpenAI (`gpt-4o-mini`, `OPENAI_API_KEY`). Set `LLM_PROVIDER=deepseek` to use DeepSeek instead. If the key is missing, `/answer` returns 503 when it would have to call the model (off-topic refusals still return 200). Input-guard rates: `make eval-guards` (no LLM). Full DeepEval: `make eval-deepeval` (needs `OPENAI_API_KEY` and `ANTHROPIC_API_KEY`; do not run it until the keys are intended for use).
+
+
 ## Project layout
 See [AGENTS.md](AGENTS.md) and [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md).
 

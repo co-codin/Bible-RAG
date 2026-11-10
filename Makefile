@@ -3,7 +3,7 @@ PY := uv run python
 # Milvus Lite (local file) by default; use http://localhost:19530 with `make up`
 MILVUS_URI ?= ./.milvus/bible_rag.db
 
-.PHONY: help install up down logs ps schema ingest reingest chunks chunks-smoke fetch-index index-check fe-install fe-dev fe-build fe-mock api eval test lint clean
+.PHONY: help install up down logs ps schema ingest reingest chunks chunks-smoke fetch-index index-check fe-install fe-dev fe-build fe-mock api eval eval-guards eval-deepeval test lint clean
 
 help: ## Show this help
 	@grep -E '^[a-zA-Z_-]+:.*?## ' $(MAKEFILE_LIST) | awk 'BEGIN {FS = ":.*?## "}; {printf "  \033[36m%-12s\033[0m %s\n", $$1, $$2}'
@@ -70,8 +70,14 @@ fe-build: ## Production build of the frontend
 	cd frontend && npm run build
 
 ## --- Quality ---
-eval: ## Run DeepEval on the golden datasets
-	uv run deepeval test run evals/
+eval-guards: ## Input-guard block / false-refusal rates (no LLM)
+	$(PY) -m evals.eval_guards
+
+eval-deepeval: ## Run DeepEval (needs OPENAI_API_KEY and ANTHROPIC_API_KEY)
+	$(PY) -m evals.run_deepeval
+
+eval: eval-deepeval ## Run DeepEval on the golden datasets (needs keys; not for CI)
+
 
 test: ## Run pytest
 	uv run pytest -q

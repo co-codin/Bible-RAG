@@ -74,3 +74,17 @@ class HealthResponse(BaseModel):
     status: str
     index: str
     fingerprint: str | None = None
+
+
+class AnswerRequest(SearchRequest):
+    lang: Literal["en", "zh"] | None = None
+
+
+class AnswerResponse(BaseModel):
+    query: str
+    answer: str | None = None
+    citations: list[str] = []
+    hits: list[HitOut] = []
+    refused: bool = False
+    refusal_reason: str | None = None
+    refusal_message: str | None = None
