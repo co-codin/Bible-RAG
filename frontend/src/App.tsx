@@ -117,7 +117,7 @@ export default function App() {
       </main>
 
       <footer className="footer">
-        Texts: KJV · 和合本 (CUV, 1919) · Pickthall (1930) · 马坚译本 (built locally, not redistributed)
+        Texts: KJV · 和合本 (CUV, 1919) · Pickthall (1930) · 马坚译本 (copyrighted until end of 2028, non-commercial)
       </footer>
     </div>
   )

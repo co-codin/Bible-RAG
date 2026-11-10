@@ -2,24 +2,28 @@
 
 Multilingual retrieval-augmented QA over the **Bible** and the **Quran**. Ask in English or Chinese, get answers grounded in scripture with verse citations, and compare the same verse across translations side by side.
 
-> Status: work in progress (phase 1: English + Chinese, frontend first).
+## Status
 
-## Features (planned)
-- Hybrid search: Milvus (bge-m3 dense + sparse), fused with RRF, optional reranker
-- Parent-child chunking with contextual retrieval
-- Cross-lingual retrieval (ask in Chinese, find English verses and vice versa)
-- Cited answers via DeepSeek / Qwen
-- Evaluation with DeepEval and documented chunking/rerank experiments
-- React UI with side-by-side verse comparison
+Phase 1 (English + Simplified Chinese) retrieval, API, frontend, input/output guards, and eval sets are in place. Generation and the full DeepEval run need API keys (left unset for now).
+
+- **Retrieval:** bge-m3 dense + sparse hybrid search in Milvus Lite, fused with RRF (default candidates=50, k=60). Pre-built index: [etsin-ai/bible-rag-index](https://huggingface.co/datasets/etsin-ai/bible-rag-index). `make index-check` verifies the fingerprint.
+- **`GET` / `POST /search`:** hybrid (or dense-only / sparse-only) search. No LLM key required.
+- **`GET /verse/{canon_ref}`:** side-by-side lookup of a verse or same-chapter range across KJV/CUV or Quran EN/ZH. Reads the corpus JSONL (the published index may have an empty `passages` collection). No LLM key required.
+- **`POST /answer`:** input guard → hybrid search → OpenAI generation (`gpt-4o-mini`) → output guard. Off-topic / injection refusals return 200 with `refused=true`. A missing key returns **503** only when the model would actually be called.
+- **Guards:** rules (length, injection, other-canon, scripture cues) plus a cheap bge-m3 topic check. On the official splits, rules + bge-m3 block **80/108** negative items (up from 53/108) with the same **1/200** false-refusal rate. Details: [evals/results/guard_eval.md](evals/results/guard_eval.md).
+- **Evals:** 3,010 golden items; `make eval-guards` needs no keys; `make eval-deepeval` needs `OPENAI_API_KEY` and `ANTHROPIC_API_KEY` and should not be run until those keys are intended for use.
+- **Frontend:** Vite app, live API by default (`make fe-dev`). Mock data only with `VITE_USE_MOCK=true` (`make fe-mock`).
+
+Still later: an optional reranker, parent-chapter expansion for the LLM, and the Russian translations (need a verse map).
 
 ## Stack
-Python 3.12 · FastAPI · Milvus · bge-m3 · DeepSeek / Qwen · DeepEval · Vite + React + TypeScript · Docker Compose
+Python 3.12 · FastAPI · Milvus Lite · bge-m3 · OpenAI (DeepSeek optional) · DeepEval · Vite + React + TypeScript
 
 ## Data
 | Corpus | English | Chinese | Russian (later) |
 |---|---|---|---|
 | Bible | KJV (public domain) | Chinese Union Version, Simplified (public domain) | Synodal 1876 (public domain) |
-| Quran | Pickthall 1930 (public domain) | Ma Jian (copyrighted, built locally, not in repo) | Sablukov 1878 (public domain) |
+| Quran | Pickthall 1930 (public domain) | Ma Jian (copyrighted until end of 2028; in the repo, non-commercial use) | Sablukov 1878 (public domain) |
 
 Bible texts come from [getBible](https://api.getbible.net/v2/); Quran translations from [Tanzil](https://tanzil.net/trans/) (non-commercial terms apply).
 
@@ -32,25 +36,28 @@ uv sync
 make fetch-index
 make index-check
 
-# API: http://localhost:8000  (GET/POST /search, GET /health)
+# API: http://localhost:8000  (GET/POST /search, GET /verse/{ref}, POST /answer, GET /health)
 make api
 
-# Frontend: http://localhost:5173
+# Frontend: http://localhost:5173  (live API is the default)
 make fe-install
-make fe-mock          # canned answers
-# or, with the API already running:
-make fe-dev           # live hybrid search (VITE_USE_MOCK=false)
+make fe-dev
+# canned answers only:
+make fe-mock
 ```
 
-Search examples (the first `/search` call on a fresh process loads bge-m3, so it is slow):
+Examples (the first call that needs bge-m3 on a fresh process is slow):
 
 ```bash
 curl -s http://localhost:8000/health
 curl -sG http://localhost:8000/search --data-urlencode 'query=爱人如己' --data-urlencode 'translation=cuv' --data-urlencode 'limit=3'
-curl -sG http://localhost:8000/search --data-urlencode 'query=love thy neighbour' --data-urlencode 'translation=kjv' --data-urlencode 'limit=3'
+curl -s http://localhost:8000/verse/John.3.16
+curl -s http://localhost:8000/verse/2Chr.30.19
 ```
 
 `/search` accepts `query` (required, max 1000 characters), optional `translation` (`kjv` | `cuv` | `quran_en` | `quran_zh`), `corpus` (`bible` | `quran`), `mode` (`hybrid` default, or `dense` / `sparse`), and `limit` (1–20, default 10).
+
+`GET /verse/{canon_ref}` accepts a single verse (`John.3.16`, `Q2:255`) or a same-chapter range (`Matt.6.14-16`). CUV verses that were merged into the previous verse in the source data (stored as a lone "a") are shown with the previous verse and a short note; the JSONL itself is not changed.
 
 `POST /answer` runs the input guard, hybrid search, generation, and the output guard. Generation defaults to OpenAI (`gpt-4o-mini`, `OPENAI_API_KEY`). Set `LLM_PROVIDER=deepseek` to use DeepSeek instead. If the key is missing, `/answer` returns 503 when it would have to call the model (off-topic refusals still return 200). Input-guard rates: `make eval-guards` (no LLM). Full DeepEval: `make eval-deepeval` (needs `OPENAI_API_KEY` and `ANTHROPIC_API_KEY`; do not run it until the keys are intended for use).
 
