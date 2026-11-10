@@ -62,12 +62,27 @@ export default function Answer(props: Props) {
             <span className="badge">{response.latencyMs} ms</span>
           </div>
         </header>
-        <div className={`answer-body ${response.lang}`} lang={response.lang === 'zh' ? 'zh-CN' : 'en'}>
-          {paragraphs.map((p, i) => (
-            <p key={i}>{renderAnswer(p, props)}</p>
-          ))}
-        </div>
-        {response.sources.length === 0 && (
+        {response.generationUnavailable && (
+          <div className="notice missing-key" role="status">
+            <b>{response.lang === 'zh' ? '尚未配置生成密钥' : 'Generation key not configured'}</b>
+            <p>{response.refusalMessage}</p>
+          </div>
+        )}
+        {response.refused && (
+          <div className="notice refusal" role="status">
+            <b>{response.lang === 'zh' ? '无法回答这个问题' : 'This question was not answered'}</b>
+            {response.refusalReason && <span className="badge">{response.refusalReason}</span>}
+            <p>{response.refusalMessage || response.answer}</p>
+          </div>
+        )}
+        {!response.refused && !response.generationUnavailable && response.answer && (
+          <div className={`answer-body ${response.lang}`} lang={response.lang === 'zh' ? 'zh-CN' : 'en'}>
+            {paragraphs.map((p, i) => (
+              <p key={i}>{renderAnswer(p, props)}</p>
+            ))}
+          </div>
+        )}
+        {response.sources.length === 0 && !response.refused && !response.generationUnavailable && (
           <p className="muted small">No passages passed the relevance threshold, so no answer was generated.</p>
         )}
       </article>

@@ -9,6 +9,8 @@ export default defineConfig({
     proxy: {
       '/api': { target: 'http://localhost:8000', changeOrigin: true },
       '/search': { target: 'http://localhost:8000', changeOrigin: true },
+      '/answer': { target: 'http://localhost:8000', changeOrigin: true },
+      '/verse': { target: 'http://localhost:8000', changeOrigin: true },
       '/health': { target: 'http://localhost:8000', changeOrigin: true },
     },
   },
@@ -16,6 +18,8 @@ export default defineConfig({
     proxy: {
       '/api': { target: 'http://localhost:8000', changeOrigin: true },
       '/search': { target: 'http://localhost:8000', changeOrigin: true },
+      '/answer': { target: 'http://localhost:8000', changeOrigin: true },
+      '/verse': { target: 'http://localhost:8000', changeOrigin: true },
       '/health': { target: 'http://localhost:8000', changeOrigin: true },
     },
   },

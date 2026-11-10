@@ -60,11 +60,11 @@ api: ## Run FastAPI dev server on :8000
 fe-install: ## npm install in frontend/
 	cd frontend && npm install
 
-fe-dev: ## Vite dev server (real API via /api proxy)
-	cd frontend && VITE_USE_MOCK=false npm run dev
-
-fe-mock: ## Vite dev server with mock data
+fe-dev: ## Vite dev server (live API is the default; proxies /search /answer /verse)
 	cd frontend && npm run dev
+
+fe-mock: ## Vite dev server with canned mock data
+	cd frontend && VITE_USE_MOCK=true npm run dev
 
 fe-build: ## Production build of the frontend
 	cd frontend && npm run build

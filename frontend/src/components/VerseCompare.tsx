@@ -66,9 +66,10 @@ export default function VerseCompare({ canonRef, onClose }: Props) {
               {TRANSLATION_NAMES[state.rec.en.translation] ?? state.rec.en.translation}
             </div>
             <blockquote className="scripture en big">
-              <sup>{state.rec.verse}</sup>
+              <sup>{state.rec.verseEnd ? `${state.rec.verse}–${state.rec.verseEnd}` : state.rec.verse}</sup>
               {state.rec.en.text}
             </blockquote>
+            {state.rec.en.note && <p className="placeholder">{state.rec.en.note}</p>}
           </div>
           <div className="compare-col" lang="zh-CN">
             <div className="col-head">
@@ -79,10 +80,13 @@ export default function VerseCompare({ canonRef, onClose }: Props) {
               })()}
             </div>
             {state.rec.zh ? (
-              <blockquote className="scripture zh big">
-                <sup>{state.rec.verse}</sup>
-                {state.rec.zh.text}
-              </blockquote>
+              <>
+                <blockquote className="scripture zh big">
+                  <sup>{state.rec.verseEnd ? `${state.rec.verse}–${state.rec.verseEnd}` : state.rec.verse}</sup>
+                  {state.rec.zh.text}
+                </blockquote>
+                {state.rec.zh.note && <p className="placeholder">{state.rec.zh.note}</p>}
+              </>
             ) : (
               <p className="placeholder">{MAJIAN_PLACEHOLDER}</p>
             )}

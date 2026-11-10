@@ -241,3 +241,15 @@ blockquote.scripture { margin: 0; }
   margin: 6px 0 0; font-size: 13px; line-height: 1.6; color: var(--muted); font-style: italic;
   padding: 8px 10px; border: 1px dashed var(--line-2); border-radius: 8px; background: #faf7f2;
 }
+
+.notice {
+  margin: 4px 0 14px;
+  padding: 12px 14px;
+  border-radius: 10px;
+  border: 1px solid var(--line-2);
+  background: #fbf8f3;
+}
+.notice b { display: inline-block; margin-right: 8px; }
+.notice p { margin: 8px 0 0; font-size: 15px; line-height: 1.6; }
+.notice.refusal { background: #fff8f0; border-color: #ead7c1; color: var(--ink); }
+.notice.missing-key { background: #fff6e8; border-color: #e8d2a8; color: #6a4a10; }

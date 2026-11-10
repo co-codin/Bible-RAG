@@ -47,11 +47,53 @@ export interface AskResponse {
   lang: Lang
   latencyMs: number
   mode: 'mock' | 'live'
+  refused?: boolean
+  refusalReason?: string
+  refusalMessage?: string
+  /** True when POST /answer returned 503 because the generation key is missing. */
+  generationUnavailable?: boolean
+}
+
+export interface AnswerApiResponse {
+  query: string
+  answer: string | null
+  citations: string[]
+  hits: SearchHit[]
+  refused: boolean
+  refusal_reason: string | null
+  refusal_message: string | null
+}
+
+export interface VerseSideOut {
+  translation: string
+  text: string
+  merged_with_previous?: boolean
+  note?: string | null
+}
+
+export interface VerseItemOut {
+  canon_ref: string
+  verse: number
+  en: VerseSideOut | null
+  zh: VerseSideOut | null
+}
+
+export interface VerseApiResponse {
+  canon_ref: string
+  corpus: Corpus
+  book_code: string
+  chapter: number
+  verse_start: number
+  verse_end: number
+  book_name: { en: string; zh: string }
+  verses: VerseItemOut[]
 }
 
 export interface VerseSide {
   translation: string
   text: string
+  mergedWithPrevious?: boolean
+  note?: string
 }
 
 export interface VerseRecord {
@@ -60,8 +102,9 @@ export interface VerseRecord {
   bookCode: string
   chapter: number
   verse: number
+  verseEnd?: number
   bookName: { en: string; zh: string }
   en: VerseSide
-  /** null = not available in this build (Quran zh / Ma Jian is copyrighted). */
+  /** null = not available (mock build may omit Ma Jian; a translation can be missing). */
   zh: VerseSide | null
 }
