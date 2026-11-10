@@ -23,13 +23,17 @@ from bible_rag.api.schemas import (
     DEFAULT_LIMIT,
     MAX_LIMIT,
     MAX_QUERY_LEN,
+    AnswerRequest,
+    AnswerResponse,
     HealthResponse,
     HitOut,
     SearchRequest,
     SearchResponse,
 )
+from bible_rag.generation.answer import answer_question
+from bible_rag.generation.llm import LLMUnavailable
 from bible_rag.index_manifest import IndexMismatchError, check, manifest_path
-from bible_rag.retrieval.hybrid import DEFAULT_URI, search
+from bible_rag.retrieval.hybrid import DEFAULT_URI, Hit, search
 
 load_dotenv()
 
@@ -135,3 +139,48 @@ def search_get(req: Annotated[SearchRequest, Depends(_search_query)]) -> SearchR
 @app.post("/search", response_model=SearchResponse)
 def search_post(req: SearchRequest) -> SearchResponse:
     return _run_search(req)
+
+
+def _hits_out(hits: list[Hit]) -> list[HitOut]:
+    return [
+        HitOut(
+            pk=h.pk,
+            translation=h.translation,
+            parent_key=h.parent_key,
+            canon_refs=list(h.canon_refs),
+            chunk_text=h.chunk_text,
+            score=h.score,
+        )
+        for h in hits
+    ]
+
+
+@app.post("/answer", response_model=AnswerResponse)
+def answer_post(req: AnswerRequest) -> AnswerResponse:
+    """Input guard -> hybrid search -> generate -> output guard.
+
+    Guard refusals are 200 with `refused=true`. A missing LLM key is 503,
+    but only if generation would actually run (the input guard can still
+    refuse off-topic questions without a key).
+    """
+    try:
+        result = answer_question(
+            req.query,
+            translation=req.translation,
+            corpus=req.corpus,
+            mode=req.mode,
+            limit=req.limit,
+            lang=req.lang,
+            uri=_milvus_uri(),
+        )
+    except LLMUnavailable as exc:
+        raise HTTPException(status_code=503, detail=str(exc)) from exc
+    return AnswerResponse(
+        query=result.query,
+        answer=result.answer,
+        citations=result.citations,
+        hits=_hits_out(result.hits),
+        refused=result.refused,
+        refusal_reason=result.refusal_reason,
+        refusal_message=result.refusal_message,
+    )
