@@ -14,12 +14,20 @@ npm run build      # tsc -b && vite build -> dist/
   `python3 scripts/gen_mock_data.py /path/to/data-root` (expects `bible-rag-data/` and `quran-data/`).
   Quran Chinese (马坚译本) is copyrighted and is never written into the repo: Quran records have `zh: null`
   and the UI shows a placeholder ("马坚译本受版权保护，本地构建后可见").
-- **Live**: `VITE_USE_MOCK=false` → `POST /api/ask` and `GET /api/verse/{canonRef}`.
+- **Live**: `VITE_USE_MOCK=false` → `GET {VITE_API_BASE_URL}/search`. Default base URL is
+  `http://localhost:8000` (CORS is enabled for the Vite origin). Set `VITE_API_BASE_URL=`
+  (empty) to call same-origin `/search`, which Vite proxies to FastAPI. The UI lists retrieved
+  chunks; answer generation is not wired yet. Side-by-side verse compare still uses the local
+  mock table when a ref is present, because `GET /verse` is not implemented yet.
 
 Contract (see `src/api/types.ts`):
-- `POST /api/ask` body `{question, corpus: "all"|"bible"|"quran", lang: "en"|"zh", topK?}` →
-  `{answer, sources[{canonRef, corpus, label, translation, text, score}], lang, latencyMs, mode}`.
+- Live search: `GET /search?query=...&corpus=bible|quran&translation=kjv|cuv|quran_en|quran_zh&mode=hybrid&limit=10`
+  → `{query, translation, corpus, mode, limit, hits[{pk, translation, parent_key, canon_refs, chunk_text, score}]}`.
+  The client maps hits into the existing `AskResponse` / `Source` shape so the sources list works unchanged.
   Inline citations in `answer` are written as `[[canonRef]]`, e.g. `[[Matt.6.14]]`, `[[Q002.2.153]]`.
+- Mock ask (and the planned generation endpoint): `POST /api/ask` body
+  `{question, corpus: "all"|"bible"|"quran", lang: "en"|"zh", topK?}` →
+  `{answer, sources[{canonRef, corpus, label, translation, text, score}], lang, latencyMs, mode}`.
 - `GET /api/verse/{canonRef}` → `{canonRef, corpus, bookCode, chapter, verse, bookName{en,zh}, en{translation,text}, zh{...}}`.
 
 `canonRef` = `book_code.chapter.verse` (Bible: OSIS code with KJV numbering; Quran: `Q002.2.153`).

@@ -24,15 +24,33 @@ Python 3.12 · FastAPI · Milvus · bge-m3 · DeepSeek / Qwen · DeepEval · Vit
 Bible texts come from [getBible](https://api.getbible.net/v2/); Quran translations from [Tanzil](https://tanzil.net/trans/) (non-commercial terms apply).
 
 ## Quick start
-_Coming soon._ Planned:
+
 ```bash
 cp .env.example .env
-docker compose up -d
 uv sync
-uv run python -m scripts.ingest
-uv run uvicorn bible_rag.api.main:app --reload
-cd frontend && npm install && npm run dev
+# Download the pre-built Milvus Lite index (or `make chunks` to embed locally):
+make fetch-index
+make index-check
+
+# API: http://localhost:8000  (GET/POST /search, GET /health)
+make api
+
+# Frontend: http://localhost:5173
+make fe-install
+make fe-mock          # canned answers
+# or, with the API already running:
+make fe-dev           # live hybrid search (VITE_USE_MOCK=false)
 ```
+
+Search examples (the first `/search` call on a fresh process loads bge-m3, so it is slow):
+
+```bash
+curl -s http://localhost:8000/health
+curl -sG http://localhost:8000/search --data-urlencode 'query=爱人如己' --data-urlencode 'translation=cuv' --data-urlencode 'limit=3'
+curl -sG http://localhost:8000/search --data-urlencode 'query=love thy neighbour' --data-urlencode 'translation=kjv' --data-urlencode 'limit=3'
+```
+
+`/search` accepts `query` (required, max 1000 characters), optional `translation` (`kjv` | `cuv` | `quran_en` | `quran_zh`), `corpus` (`bible` | `quran`), `mode` (`hybrid` default, or `dense` / `sparse`), and `limit` (1–20, default 10).
 
 ## Project layout
 See [AGENTS.md](AGENTS.md) and [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md).

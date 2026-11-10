@@ -11,13 +11,33 @@ export interface AskRequest {
 
 /** One retrieved passage (a child chunk) with its retrieval score. */
 export interface Source {
+  pk?: string // chunk id from the search API, unique even when windows overlap
   canonRef: string // e.g. "Matt.6.14", "Q002.2.153"
   corpus: Corpus
   label: string // human readable, in the answer language: "Matthew 6:14" / "马太福音 6:14"
   translation: string // kjv | cuv | pickthall | majian
   /** null when the text cannot be shown (e.g. Ma Jian Quran in the public/mock build). */
   text: string | null
-  score: number // 0..1, higher is better
+  score: number // retrieval score (RRF, cosine, or IP); higher is better
+}
+
+/** Live `GET/POST /search` payload. */
+export interface SearchHit {
+  pk: string
+  translation: string
+  parent_key: string
+  canon_refs: string[]
+  chunk_text: string
+  score: number
+}
+
+export interface SearchResponse {
+  query: string
+  translation: string | null
+  corpus: string | null
+  mode: string
+  limit: number
+  hits: SearchHit[]
 }
 
 export interface AskResponse {
