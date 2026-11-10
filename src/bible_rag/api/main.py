@@ -29,11 +29,20 @@ from bible_rag.api.schemas import (
     HitOut,
     SearchRequest,
     SearchResponse,
+    VerseItemOut,
+    VerseResponse,
+    VerseSideOut,
 )
 from bible_rag.generation.answer import answer_question
 from bible_rag.generation.llm import LLMUnavailable
 from bible_rag.index_manifest import IndexMismatchError, check, manifest_path
 from bible_rag.retrieval.hybrid import DEFAULT_URI, Hit, search
+from bible_rag.retrieval.verses import (
+    VerseNotFound,
+    VerseRefError,
+    VerseSide,
+    lookup_verses,
+)
 
 load_dotenv()
 
@@ -183,4 +192,44 @@ def answer_post(req: AnswerRequest) -> AnswerResponse:
         refused=result.refused,
         refusal_reason=result.refusal_reason,
         refusal_message=result.refusal_message,
+    )
+
+
+def _side_out(side: VerseSide | None) -> VerseSideOut | None:
+    if side is None:
+        return None
+    return VerseSideOut(
+        translation=side.translation,
+        text=side.text,
+        merged_with_previous=side.merged_with_previous,
+        note=side.note,
+    )
+
+
+@app.get("/verse/{canon_ref}", response_model=VerseResponse)
+def verse_get(canon_ref: str) -> VerseResponse:
+    """Look up a verse or same-chapter range across translations."""
+    try:
+        record = lookup_verses(canon_ref, uri=_milvus_uri())
+    except VerseRefError as exc:
+        raise HTTPException(status_code=422, detail=str(exc)) from exc
+    except VerseNotFound as exc:
+        raise HTTPException(status_code=404, detail=str(exc)) from exc
+    return VerseResponse(
+        canon_ref=record.canon_ref,
+        corpus=record.corpus,  # type: ignore[arg-type]
+        book_code=record.book_code,
+        chapter=record.chapter,
+        verse_start=record.verse_start,
+        verse_end=record.verse_end,
+        book_name=record.book_name,
+        verses=[
+            VerseItemOut(
+                canon_ref=item.canon_ref,
+                verse=item.verse,
+                en=_side_out(item.en),
+                zh=_side_out(item.zh),
+            )
+            for item in record.verses
+        ],
     )

@@ -88,3 +88,28 @@ class AnswerResponse(BaseModel):
     refused: bool = False
     refusal_reason: str | None = None
     refusal_message: str | None = None
+
+
+class VerseSideOut(BaseModel):
+    translation: str
+    text: str
+    merged_with_previous: bool = False
+    note: str | None = None
+
+
+class VerseItemOut(BaseModel):
+    canon_ref: str
+    verse: int
+    en: VerseSideOut | None = None
+    zh: VerseSideOut | None = None
+
+
+class VerseResponse(BaseModel):
+    canon_ref: str
+    corpus: Literal["bible", "quran"]
+    book_code: str
+    chapter: int
+    verse_start: int
+    verse_end: int
+    book_name: dict[str, str]
+    verses: list[VerseItemOut]
