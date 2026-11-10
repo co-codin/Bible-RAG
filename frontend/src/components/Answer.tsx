@@ -44,6 +44,9 @@ function renderAnswer(text: string, props: Props): ReactNode[] {
 export default function Answer(props: Props) {
   const { response, question, activeRef, onCite } = props
   const paragraphs = response.answer.split(/\n{2,}/)
+  const maxScore = Math.max(...response.sources.map((s) => s.score), 0)
+  const scoreText = (score: number) => (score > 0 && score < 0.1 ? score.toFixed(4) : score.toFixed(3))
+  const scorePct = (score: number) => (maxScore > 0 ? Math.round((score / maxScore) * 100) : 0)
   return (
     <section className="answer-wrap">
       <article className="card answer">
@@ -73,8 +76,8 @@ export default function Answer(props: Props) {
         <section className="card sources">
           <div className="eyebrow">Retrieved sources · top {response.sources.length}</div>
           <ol>
-            {response.sources.map((s) => (
-              <li key={s.canonRef} className={`${s.corpus} ${activeRef === s.canonRef ? 'active' : ''}`}>
+            {response.sources.map((s, i) => (
+              <li key={s.pk ?? `${s.canonRef}-${i}`} className={`${s.corpus} ${activeRef === s.canonRef ? 'active' : ''}`}>
                 <button type="button" className="source" onClick={() => onCite(s.canonRef)}>
                   <div className="source-top">
                     <span className={`corpus-dot ${s.corpus}`} />
@@ -82,9 +85,9 @@ export default function Answer(props: Props) {
                     <span className="source-tr">{TRANSLATION_NAMES[s.translation] ?? s.translation}</span>
                     <span className="score" title="retrieval score">
                       <span className={`score-bar ${s.corpus}`}>
-                        <span style={{ width: `${Math.round(s.score * 100)}%` }} />
+                        <span style={{ width: `${scorePct(s.score)}%` }} />
                       </span>
-                      {s.score.toFixed(3)}
+                      {scoreText(s.score)}
                     </span>
                   </div>
                   {s.text != null ? (
